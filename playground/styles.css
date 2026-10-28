@@ -1,0 +1,74 @@
+:root {
+  color-scheme: light;
+  --paper: #efe8dc;
+  --ink: #1b1714;
+  --muted: #6d645b;
+  --card: #fbf8f3;
+  --line: #e2d8c8;
+  --accent: #0f6e6b;
+  --accent-ink: #f6f3ec;
+  --warn: #9a4d24;
+  font-family: "IBM Plex Sans", "Source Sans 3", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 500px at 10% -10%, #f7f1e6 0%, transparent 55%),
+    linear-gradient(180deg, #f3ecdf 0%, var(--paper) 40%);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; }
+button, textarea { font: inherit; color: inherit; }
+h1, h2, h3 { font-family: Newsreader, "Iowan Old Style", Palatino, serif; font-weight: 560; letter-spacing: -0.03em; }
+
+.studio { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 64px; }
+.topbar { display: grid; grid-template-columns: minmax(220px, 360px) 1fr; gap: 24px; align-items: end; margin-bottom: 22px; }
+.eyebrow { margin: 0 0 6px; color: var(--accent); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; }
+h1 { margin: 0; font-size: 48px; line-height: 0.95; }
+.lede { margin: 0; max-width: 46ch; color: var(--muted); font-size: 16px; line-height: 1.55; }
+
+.layout { display: grid; grid-template-columns: minmax(300px, 0.9fr) 1.15fr; gap: 16px; align-items: stretch; }
+.editor-pane, .stage-pane, .matrix { background: var(--card); border: 1px solid var(--line); border-radius: 18px; }
+.editor-pane { padding: 14px; display: flex; flex-direction: column; min-height: 640px; }
+.examples, .themes { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip, .primary { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 6px 10px; cursor: pointer; }
+.chip.on, .primary { background: var(--ink); color: var(--accent-ink); border-color: var(--ink); }
+.primary { padding: 8px 14px; }
+.source-label { margin: 12px 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+textarea {
+  flex: 1; min-height: 320px; resize: vertical; border: 1px solid var(--line); border-radius: 12px;
+  background: #fffdf9; padding: 12px 14px; line-height: 1.5;
+  font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px;
+}
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.config {
+  margin: 10px 0 0; max-height: 220px; overflow: auto; padding: 12px; border-radius: 12px;
+  background: #221e1b; color: #f3ece2; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+}
+
+.stage-pane { padding: 14px; display: flex; flex-direction: column; min-height: 640px; }
+.stage-meta { display: flex; align-items: center; gap: 8px; min-height: 28px; color: var(--muted); font-size: 13px; }
+.stage-meta p { margin: 0; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.dot.ready { background: var(--accent); }
+.dot.pending { background: var(--warn); }
+.dot.error, .dot.unsupported { background: #b44848; }
+.stage { flex: 1; min-height: 520px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+
+.matrix { margin-top: 16px; padding: 18px 18px 8px; }
+.matrix h2 { margin: 0 0 12px; font-size: 28px; }
+.matrix-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.matrix article { padding: 10px 10px 12px; border-top: 1px solid var(--line); }
+.matrix header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.matrix code { color: var(--muted); font-size: 12px; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.matrix p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+@media (max-width: 900px) {
+  .topbar, .layout, .matrix-grid { grid-template-columns: 1fr; }
+  h1 { font-size: 40px; }
+  .studio { width: min(100% - 20px, 1180px); padding-top: 18px; }
+  .layout { display: flex; flex-direction: column; }
+  .stage-pane { order: -1; min-height: 0; }
+  .editor-pane { min-height: 0; }
+  .stage { min-height: 420px; }
+  .matrix-grid { grid-template-columns: 1fr 1fr; }
+}

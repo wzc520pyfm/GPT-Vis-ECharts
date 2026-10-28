@@ -1,0 +1,747 @@
+import { SUPPORTED, chartLabel } from './catalog';
+import {
+  num,
+  renderFishbone,
+  renderLiquid,
+  renderPending,
+  renderSummaryView,
+  renderTable,
+  renderUnsupported,
+  renderVenn,
+  renderViolin,
+  renderWordCloud,
+  rowsOf,
+  text,
+  treeOf,
+  type Row,
+} from './markup';
+import { readConfig } from './parser';
+import { resolveTheme, safeColor, safePalette, type ThemeName, type ThemeTokens } from './theme';
+
+export interface ViewContext {
+  theme?: ThemeName;
+  streaming?: boolean;
+  width?: number;
+  height?: number;
+}
+
+export type View =
+  | { kind: 'echarts'; option: Record<string, unknown>; background: string; message: string }
+  | { kind: 'html'; html: string; background: string; message: string }
+  | { kind: 'pending'; html: string; background: string; message: string }
+  | { kind: 'error'; html: string; background: string; message: string };
+
+export function buildView(input: unknown, context: ViewContext = {}): View {
+  const config = readConfig(input, { streaming: context.streaming });
+  const theme = resolveTheme(config.theme, context.theme ?? 'default');
+  const background = safeColor(styleOf(config).backgroundColor, theme.background) ?? theme.background;
+
+  if (!config.type) {
+    return pending(context.streaming ? '正在等待 vis 语法…' : '写一行 vis line、vis bar 或其他图表类型。', background);
+  }
+  if (!SUPPORTED.has(config.type)) {
+    const stillTyping =
+      context.streaming && typeof input === 'string' && !unwrapFirstLine(input).closed;
+    if (stillTyping) return pending('正在识别图表类型…', background);
+    return {
+      kind: 'error',
+      html: renderUnsupported(config.type),
+      background,
+      message: `不支持的类型 ${config.type}`,
+    };
+  }
+
+  const html = markupFor(config, theme);
+  if (html) {
+    return { kind: 'html', html, background, message: `${chartLabel(config.type)} · 已渲染` };
+  }
+  if (MARKUP_TYPES.has(config.type)) {
+    return pending(`${chartLabel(config.type)}还缺数据。`, background);
+  }
+
+  const option = optionFor(config, theme, context);
+  if (!option) return pending(`${chartLabel(config.type)}还缺可绘制的数据。`, background);
+  return { kind: 'echarts', option, background, message: `${chartLabel(config.type)} · 已渲染` };
+}
+
+const MARKUP_TYPES = new Set(['liquid', 'table', 'summary', 'word-cloud', 'venn', 'violin', 'fishbone-diagram']);
+
+function pending(message: string, background: string): View {
+  return { kind: 'pending', html: renderPending(message), background, message };
+}
+
+function unwrapFirstLine(input: string): { closed: boolean } {
+  const body = input.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').trimStart();
+  const fenced = body.startsWith('```');
+  const source = fenced ? body.slice(body.indexOf('\n') + 1) : body;
+  const newline = source.indexOf('\n');
+  return { closed: newline >= 0 };
+}
+
+function styleOf(config: Record<string, unknown>): Record<string, unknown> {
+  return config.style && typeof config.style === 'object' ? (config.style as Record<string, unknown>) : {};
+}
+
+function paletteOf(config: Record<string, unknown>, theme: ThemeTokens): string[] {
+  return safePalette(styleOf(config).palette, theme.palette);
+}
+
+function markupFor(config: Record<string, unknown>, theme: ThemeTokens): string | null {
+  switch (config.type) {
+    case 'liquid':
+      return renderLiquid(config, theme);
+    case 'table':
+      return renderTable(config, theme);
+    case 'summary':
+      return renderSummaryView(config, theme);
+    case 'word-cloud':
+      return renderWordCloud(config, theme);
+    case 'venn':
+      return renderVenn(config, theme);
+    case 'violin':
+      return renderViolin(config, theme);
+    case 'fishbone-diagram':
+      return renderFishbone(config, theme);
+    default:
+      return null;
+  }
+}
+
+function optionFor(config: Record<string, unknown>, theme: ThemeTokens, context: ViewContext): Record<string, unknown> | null {
+  const colors = paletteOf(config, theme);
+  switch (config.type) {
+    case 'line':
+    case 'area':
+      return cartesian(config, theme, colors, config.type === 'area' ? 'area' : 'line');
+    case 'column':
+    case 'bar':
+      return cartesian(config, theme, colors, config.type);
+    case 'pie':
+      return pie(config, theme, colors);
+    case 'scatter':
+      return scatter(config, theme, colors);
+    case 'radar':
+      return radar(config, theme, colors);
+    case 'funnel':
+      return funnel(config, theme, colors);
+    case 'waterfall':
+      return waterfall(config, theme, colors);
+    case 'dual-axes':
+      return dualAxes(config, theme, colors);
+    case 'histogram':
+      return histogram(config, theme, colors);
+    case 'boxplot':
+      return boxplot(config, theme, colors);
+    case 'sankey':
+      return sankey(config, theme, colors);
+    case 'treemap':
+      return treemap(config, theme, colors);
+    case 'network-graph':
+      return graph(config, theme, colors, 'force', context);
+    case 'flow-diagram':
+      return graph(config, theme, colors, 'flow', context);
+    case 'mindmap':
+      return treeChart(config, theme, colors, config.direction === 'RL' ? 'RL' : 'LR');
+    case 'indented-tree':
+      return treeChart(config, theme, colors, 'LR');
+    case 'organization-chart':
+      return treeChart(config, theme, colors, 'TB');
+    default:
+      return null;
+  }
+}
+
+function base(config: Record<string, unknown>, theme: ThemeTokens, colors: string[], legend: boolean): Record<string, unknown> {
+  const title = text(config.title);
+  return {
+    color: colors,
+    backgroundColor: 'transparent',
+    animationDuration: 420,
+    textStyle: { color: theme.text, fontFamily: 'IBM Plex Sans, Source Sans 3, sans-serif' },
+    title: title
+      ? { text: title, left: 8, top: 6, textStyle: { color: theme.text, fontSize: 16, fontWeight: 600 } }
+      : undefined,
+    legend: legend ? { top: title ? 34 : 8, type: 'scroll', textStyle: { color: theme.muted } } : undefined,
+    tooltip: {
+      backgroundColor: theme.tooltipBg,
+      borderWidth: 0,
+      textStyle: { color: theme.tooltipText },
+    },
+  };
+}
+
+function axisCommon(theme: ThemeTokens, name?: string): Record<string, unknown> {
+  return {
+    name,
+    nameLocation: 'middle',
+    nameGap: name ? 32 : 15,
+    nameTextStyle: { color: theme.muted, padding: [8, 0, 0, 0] },
+    axisLine: { lineStyle: { color: theme.grid } },
+    axisTick: { show: false },
+    axisLabel: { color: theme.muted, hideOverlap: true },
+    splitLine: { lineStyle: { color: theme.grid } },
+  };
+}
+
+function grouped(rows: Row[], xKey: string, yKey: string) {
+  const categories: string[] = [];
+  for (const row of rows) {
+    const category = text(row[xKey]);
+    if (!categories.includes(category)) categories.push(category);
+  }
+  const groups: string[] = [];
+  for (const row of rows) {
+    if (row.group == null || row.group === '') continue;
+    const group = text(row.group);
+    if (!groups.includes(group)) groups.push(group);
+  }
+  const names = groups.length ? groups : [''];
+  const series = names.map((group) => ({
+    name: group || text(rows[0]?.[yKey] ? '' : '') || '数值',
+    data: categories.map((category) => {
+      const found = rows.find((row) => text(row[xKey]) === category && text(row.group ?? '') === group);
+      return found ? num(found[yKey]) : null;
+    }),
+  }));
+  if (!groups.length) series[0].name = '数值';
+  return { categories, series, grouped: groups.length > 0 };
+}
+
+function cartesian(
+  config: Record<string, unknown>,
+  theme: ThemeTokens,
+  colors: string[],
+  kind: 'line' | 'area' | 'column' | 'bar',
+): Record<string, unknown> | null {
+  const xKey = kind === 'line' || kind === 'area' ? 'time' : 'category';
+  const rows = rowsOf(config.data).filter((row) => row[xKey] != null && num(row.value) != null);
+  if (!rows.length) return null;
+  const split = grouped(rows, xKey, 'value');
+  const horizontal = kind === 'bar';
+  const stacked = config.stack === true;
+  const lineWidth = num(styleOf(config).lineWidth) ?? 2;
+  const long = split.categories.length > 14;
+  const series = split.series.map((entry) => {
+    const type = kind === 'area' || kind === 'line' ? 'line' : 'bar';
+    return {
+      type,
+      name: entry.name,
+      data: entry.data,
+      stack: stacked ? 'total' : undefined,
+      smooth: false,
+      showSymbol: kind !== 'column' && kind !== 'bar' && split.categories.length <= 24,
+      symbolSize: 7,
+      lineStyle: { width: lineWidth },
+      areaStyle: kind === 'area' ? { opacity: stacked ? 0.72 : 0.18 } : undefined,
+      barMaxWidth: 36,
+    };
+  });
+  const categoryAxis = {
+    type: 'category',
+    data: split.categories,
+    inverse: horizontal,
+    ...axisCommon(theme, text(horizontal ? config.axisYTitle : config.axisXTitle) || undefined),
+  };
+  const valueAxis = {
+    type: 'value',
+    ...axisCommon(theme, text(horizontal ? config.axisXTitle : config.axisYTitle) || undefined),
+  };
+  return {
+    ...base(config, theme, colors, split.grouped || series.length > 1),
+    tooltip: { trigger: 'axis', backgroundColor: theme.tooltipBg, borderWidth: 0, textStyle: { color: theme.tooltipText } },
+    grid: {
+      left: 18,
+      right: 22,
+      top: text(config.title) ? 78 : 52,
+      bottom: long ? 64 : text(config.axisXTitle) ? 42 : 28,
+      containLabel: true,
+    },
+    xAxis: horizontal ? valueAxis : categoryAxis,
+    yAxis: horizontal ? categoryAxis : valueAxis,
+    dataZoom: long ? [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 8 }] : undefined,
+    series,
+  };
+}
+
+function pie(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+  const rows = rowsOf(config.data).filter((row) => num(row.value) != null);
+  if (!rows.length) return null;
+  const inner = num(config.innerRadius) ?? 0;
+  const ratio = inner > 1 ? inner / 100 : inner;
+  const innerRadius = `${Math.max(0, Math.min(0.85, ratio)) * 68}%`;
+  return {
+    ...base(config, theme, colors, true),
+    tooltip: { trigger: 'item', backgroundColor: theme.tooltipBg, borderWidth: 0, textStyle: { color: theme.tooltipText } },
+    series: [
+      {
+        type: 'pie',
+        radius: [innerRadius, '68%'],
+        center: ['50%', text(config.title) ? '56%' : '52%'],
+        data: rows.map((row) => ({ name: text(row.category || row.name), value: num(row.value) })),
+        label: { color: theme.text, formatter: '{b}\n{d}%' },
+      },
+    ],
+  };
+}
+
+function scatter(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+  const rows = rowsOf(config.data).filter((row) => num(row.x) != null && num(row.y) != null);
+  if (!rows.length) return null;
+  const groups = [...new Set(rows.map((row) => text(row.group)).filter(Boolean))];
+  const buckets = groups.length ? groups : [''];
+  return {
+    ...base(config, theme, colors, groups.length > 0),
+    grid: { left: 18, right: 24, top: text(config.title) ? 72 : 48, bottom: 28, containLabel: true },
+    xAxis: { type: 'value', scale: true, ...axisCommon(theme, text(config.axisXTitle) || undefined) },
+    yAxis: { type: 'value', scale: true, ...axisCommon(theme, text(config.axisYTitle) || undefined) },
+    series: buckets.map((group) => ({
+      type: 'scatter',
+      name: group || '样本',
+      symbolSize: 12,
+      data: rows.filter((row) => text(row.group ?? '') === group).map((row) => [num(row.x), num(row.y)]),
+    })),
+  };
+}
+
+function radar(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+  const rows = rowsOf(config.data).filter((row) => row.name != null && num(row.value) != null);
+  if (!rows.length) return null;
+  const indicators: string[] = [];
+  for (const row of rows) {
+    const name = text(row.name);
+    if (!indicators.includes(name)) indicators.push(name);
+  }
+  const groups = [...new Set(rows.map((row) => text(row.group)))];
+  const names = groups.some(Boolean) ? groups.filter(Boolean) : [''];
+  const sharedMax = config.align === true;
+  const maxOf = (name: string) => {
+    const values = rows.filter((row) => text(row.name) === name).map((row) => num(row.value) ?? 0);
+    return Math.max(1, ...values);
+  };
+  const globalMax = Math.max(...indicators.map(maxOf));
+  return {
+    ...base(config, theme, colors, names.length > 1),
+    radar: {
+      indicator: indicators.map((name) => ({ name, max: (sharedMax ? globalMax : maxOf(name)) * 1.15 })),
+      axisName: { color: theme.muted },
+      splitLine: { lineStyle: { color: theme.grid } },
+      splitArea: { areaStyle: { color: ['transparent', 'transparent'] } },
+      center: ['50%', text(config.title) ? '56%' : '52%'],
+      radius: '62%',
+    },
+    series: [
+      {
+        type: 'radar',
+        data: names.map((group) => ({
+          name: group || text(config.title) || '数值',
+          value: indicators.map((name) => {
+            const found = rows.find((row) => text(row.name) === name && text(row.group ?? '') === group);
+            return found ? num(found.value) : 0;
+          }),
+          areaStyle: { opacity: 0.12 },
+          lineStyle: { width: num(styleOf(config).lineWidth) ?? 2 },
+        })),
+      },
+    ],
+  };
+}
+
+function funnel(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+  const rows = rowsOf(config.data).filter((row) => num(row.value) != null);
+  if (!rows.length) return null;
+  return {
+    ...base(config, theme, colors, false),
+    series: [
+      {
+        type: 'funnel',
+        left: '12%',
+        top: text(config.title) ? 64 : 36,
+        bottom: 16,
+        width: '76%',
+        sort: 'descending',
+        gap: 4,
+        label: { color: theme.text, formatter: '{b}  {c}' },
+        data: rows.map((row) => ({ name: text(row.category || row.name), value: num(row.value) })),
+      },
+    ],
+  };
+}
+
+function waterfall(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+  const rows = rowsOf(config.data).filter((row) => row.category != null || row.name != null);
+  if (!rows.length) return null;
+  const custom = Array.isArray(styleOf(config).palette);
+  const positive = custom ? colors[0] ?? theme.positive : theme.positive;
+  const negative = custom ? colors[1] ?? theme.negative : theme.negative;
+  const totalColor = custom ? colors[2] ?? theme.total : theme.total;
+  let cursor = 0;
+  const helpers: number[] = [];
+  const bars: number[] = [];
+  const signed: number[] = [];
+  const paints: string[] = [];
+  const categories: string[] = [];
+  for (const row of rows) {
+    categories.push(text(row.category || row.name));
+    const marked = row.isTotal === true || row.isIntermediateTotal === true;
+    if (marked) {
+      const height = num(row.value) ?? cursor;
+      helpers.push(0);
+      bars.push(Math.abs(height));
+      signed.push(height);
+      paints.push(totalColor);
+      cursor = height;
+      continue;
+    }
+    const value = num(row.value) ?? 0;
+    signed.push(value);
+    if (value >= 0) {
+      helpers.push(cursor);
+      bars.push(value);
+      paints.push(positive);
+      cursor += value;
+    } else {
+      cursor += value;
+      helpers.push(cursor);
+      bars.push(-value);
+      paints.push(negative);
+    }
+  }
+  return {
+    ...base(config, theme, colors, false),
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: theme.tooltipBg,
+      borderWidth: 0,
+      textStyle: { color: theme.tooltipText },
+      formatter: (params: unknown) => {
+        const items = Array.isArray(params) ? params : [params];
+        const index = (items[0] as { dataIndex?: number })?.dataIndex ?? 0;
+        return `${categories[index]}<br/>${formatNumber(signed[index] ?? 0)}`;
+      },
+    },
+    grid: { left: 18, right: 18, top: text(config.title) ? 64 : 36, bottom: 24, containLabel: true },
+    xAxis: { type: 'category', data: categories, ...axisCommon(theme, text(config.axisXTitle) || undefined) },
+    yAxis: { type: 'value', ...axisCommon(theme, text(config.axisYTitle) || undefined) },
+    series: [
+      { type: 'bar', stack: 'waterfall', data: helpers, itemStyle: { color: 'transparent' }, emphasis: { disabled: true }, tooltip: { show: false } },
+      {
+        type: 'bar',
+        stack: 'waterfall',
+        data: bars.map((value, index) => ({ value, itemStyle: { color: paints[index] } })),
+        barMaxWidth: 42,
+        label: {
+          show: true,
+          position: 'top',
+          color: theme.muted,
+          formatter: (item: { dataIndex: number }) => formatNumber(signed[item.dataIndex] ?? 0),
+        },
+      },
+    ],
+  };
+}
+
+function dualAxes(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+  const categories = Array.isArray(config.categories) ? config.categories.map((item) => text(item)) : [];
+  const series = rowsOf(config.series).filter((item) => Array.isArray(item.data));
+  if (!categories.length || !series.length) return null;
+  const startAtZero = styleOf(config).startAtZero !== false;
+  return {
+    ...base(config, theme, colors, true),
+    tooltip: { trigger: 'axis', backgroundColor: theme.tooltipBg, borderWidth: 0, textStyle: { color: theme.tooltipText } },
+    grid: { left: 18, right: 18, top: text(config.title) ? 78 : 52, bottom: 24, containLabel: true },
+    xAxis: { type: 'category', data: categories, ...axisCommon(theme, text(config.axisXTitle) || undefined) },
+    yAxis: [0, 1].map((index) => ({
+      type: 'value',
+      alignTicks: true,
+      scale: !startAtZero,
+      min: startAtZero ? 0 : undefined,
+      ...axisCommon(theme, text(series[index]?.axisYTitle) || undefined),
+    })),
+    series: series.map((item, index) => ({
+      type: item.type === 'line' ? 'line' : 'bar',
+      name: text(item.name || item.axisYTitle) || `系列 ${index + 1}`,
+      yAxisIndex: Math.min(index, 1),
+      data: (item.data as unknown[]).map((value) => num(value)),
+      barMaxWidth: 28,
+      smooth: false,
+      symbolSize: 7,
+    })),
+  };
+}
+
+function histogram(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+  const values = Array.isArray(config.data) ? config.data.map((item) => num(item)).filter((item): item is number => item != null) : [];
+  if (!values.length) return null;
+  const bins = Math.max(1, Math.round(num(config.binNumber) ?? 8));
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const step = (max - min || 1) / bins;
+  const counts = Array.from({ length: bins }, () => 0);
+  for (const value of values) {
+    const index = Math.min(bins - 1, Math.max(0, Math.floor((value - min) / step)));
+    counts[index] += 1;
+  }
+  const labels = counts.map((_, index) => {
+    const start = min + index * step;
+    return `${formatNumber(start)}–${formatNumber(start + step)}`;
+  });
+  return {
+    ...base(config, theme, colors, false),
+    grid: { left: 18, right: 16, top: text(config.title) ? 64 : 32, bottom: 24, containLabel: true },
+    xAxis: { type: 'category', data: labels, ...axisCommon(theme, text(config.axisXTitle) || undefined) },
+    yAxis: { type: 'value', ...axisCommon(theme, text(config.axisYTitle) || '频数') },
+    series: [{ type: 'bar', data: counts, barMaxWidth: 48, itemStyle: { color: colors[0] } }],
+  };
+}
+
+function quartiles(values: number[]): number[] {
+  const sorted = [...values].sort((a, b) => a - b);
+  const at = (p: number) => {
+    const position = (sorted.length - 1) * p;
+    const low = Math.floor(position);
+    const high = Math.ceil(position);
+    if (low === high) return sorted[low];
+    return sorted[low] * (high - position) + sorted[high] * (position - low);
+  };
+  return [sorted[0], at(0.25), at(0.5), at(0.75), sorted[sorted.length - 1]];
+}
+
+function boxplot(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+  const rows = rowsOf(config.data).filter((row) => num(row.value) != null);
+  if (!rows.length) return null;
+  const categories: string[] = [];
+  for (const row of rows) {
+    const category = text(row.category || row.name || '全部');
+    if (!categories.includes(category)) categories.push(category);
+  }
+  const groups = [...new Set(rows.map((row) => text(row.group)).filter(Boolean))];
+  const names = groups.length ? groups : [''];
+  const startAtZero = styleOf(config).startAtZero === true;
+  return {
+    ...base(config, theme, colors, groups.length > 0),
+    grid: { left: 18, right: 16, top: text(config.title) ? 72 : 40, bottom: 24, containLabel: true },
+    xAxis: { type: 'category', data: categories, ...axisCommon(theme, text(config.axisXTitle) || undefined) },
+    yAxis: { type: 'value', scale: !startAtZero, min: startAtZero ? 0 : undefined, ...axisCommon(theme, text(config.axisYTitle) || undefined) },
+    series: names.map((group) => ({
+      type: 'boxplot',
+      name: group || '分布',
+      data: categories.map((category) => {
+        const values = rows
+          .filter((row) => text(row.category || row.name || '全部') === category && text(row.group ?? '') === group)
+          .map((row) => num(row.value))
+          .filter((value): value is number => value != null);
+        return values.length ? quartiles(values) : '-';
+      }),
+    })),
+  };
+}
+
+function sankey(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+  const rows = rowsOf(config.data).filter((row) => row.source != null && row.target != null && num(row.value) != null);
+  if (!rows.length) return null;
+  const names: string[] = [];
+  for (const row of rows) {
+    for (const key of [text(row.source), text(row.target)]) if (!names.includes(key)) names.push(key);
+  }
+  const align = config.nodeAlign === 'right' || config.nodeAlign === 'left' || config.nodeAlign === 'justify' ? config.nodeAlign : 'justify';
+  return {
+    ...base(config, theme, colors, false),
+    series: [
+      {
+        type: 'sankey',
+        top: text(config.title) ? 48 : 16,
+        bottom: 8,
+        left: '2%',
+        right: '18%',
+        nodeAlign: align,
+        nodeWidth: 12,
+        nodeGap: 14,
+        layoutIterations: 32,
+        lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.45 },
+        label: { color: theme.text, fontSize: 12 },
+        data: names.map((name, index) => ({ name, itemStyle: { color: colors[index % colors.length] } })),
+        links: rows.map((row) => ({ source: text(row.source), target: text(row.target), value: num(row.value) })),
+      },
+    ],
+  };
+}
+
+function treemapNodes(data: unknown): Row[] {
+  return rowsOf(data).map((row) => ({
+    name: text(row.name || row.category),
+    value: num(row.value) ?? undefined,
+    children: row.children ? treemapNodes(row.children) : undefined,
+  }));
+}
+
+function treemap(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+  const data = treemapNodes(config.data);
+  if (!data.length) return null;
+  return {
+    ...base(config, theme, colors, false),
+    series: [
+      {
+        type: 'treemap',
+        top: text(config.title) ? 48 : 16,
+        bottom: 8,
+        left: 8,
+        right: 8,
+        roam: false,
+        breadcrumb: { show: true, itemStyle: { color: theme.grid, textStyle: { color: theme.text } } },
+        label: { color: '#fbf9f6' },
+        data,
+      },
+    ],
+  };
+}
+
+function graphNodes(data: unknown): { nodes: Row[]; edges: Row[] } {
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const record = data as Row;
+    return { nodes: rowsOf(record.nodes), edges: rowsOf(record.edges) };
+  }
+  const rows = rowsOf(data);
+  if (rows.some((row) => row.source && row.target)) {
+    const names = new Set<string>();
+    for (const row of rows) {
+      names.add(text(row.source));
+      names.add(text(row.target));
+    }
+    return { nodes: [...names].map((name) => ({ name })), edges: rows };
+  }
+  return { nodes: [], edges: [] };
+}
+
+function graph(
+  config: Record<string, unknown>,
+  theme: ThemeTokens,
+  colors: string[],
+  mode: 'force' | 'flow',
+  context: ViewContext,
+): Record<string, unknown> | null {
+  const { nodes, edges } = graphNodes(config.data);
+  if (!nodes.length) return null;
+  const width = context.width || 720;
+  const height = context.height || 420;
+  const positions = mode === 'flow' ? flowPositions(nodes, edges) : null;
+  return {
+    ...base(config, theme, colors, false),
+    series: [
+      {
+        type: 'graph',
+        layout: positions ? 'none' : 'force',
+        roam: true,
+        draggable: true,
+        force: positions ? undefined : { repulsion: 220, edgeLength: 110, gravity: 0.08 },
+        label: { show: true, color: theme.text, fontSize: 12 },
+        lineStyle: { color: theme.muted, opacity: 0.55, width: 1.4 },
+        edgeLabel: {
+          show: edges.some((edge) => edge.name),
+          color: theme.muted,
+          fontSize: 11,
+          formatter: '{c}',
+        },
+        data: nodes.map((node, index) => {
+          const place = positions?.get(text(node.name));
+          return {
+            name: text(node.name),
+            x: place ? (place.x / 100) * width : undefined,
+            y: place ? (place.y / 100) * height : undefined,
+            symbolSize: 42,
+            itemStyle: { color: colors[index % colors.length] },
+          };
+        }),
+        links: edges.map((edge) => ({
+          source: text(edge.source),
+          target: text(edge.target),
+          value: text(edge.name),
+        })),
+      },
+    ],
+  };
+}
+
+function flowPositions(nodes: Row[], edges: Row[]): Map<string, { x: number; y: number }> {
+  const names = nodes.map((node) => text(node.name));
+  const layer = new Map<string, number>(names.map((name) => [name, 0]));
+  for (let pass = 0; pass < names.length; pass += 1) {
+    let changed = false;
+    for (const edge of edges) {
+      const source = layer.get(text(edge.source));
+      if (source == null || !layer.has(text(edge.target))) continue;
+      const next = source + 1;
+      if ((layer.get(text(edge.target)) ?? 0) < next) {
+        layer.set(text(edge.target), next);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  const columns = new Map<number, string[]>();
+  for (const name of names) {
+    const index = layer.get(name) ?? 0;
+    columns.set(index, [...(columns.get(index) ?? []), name]);
+  }
+  const max = Math.max(...columns.keys(), 0);
+  const positions = new Map<string, { x: number; y: number }>();
+  for (const [index, column] of columns) {
+    column.forEach((name, row) => {
+      positions.set(name, {
+        x: max === 0 ? 50 : 10 + (index / max) * 80,
+        y: ((row + 1) / (column.length + 1)) * 100,
+      });
+    });
+  }
+  return positions;
+}
+
+function toEchartsTree(node: Row): Record<string, unknown> {
+  const children = rowsOf(node.children).map(toEchartsTree);
+  return { name: text(node.name || node.category || '未命名'), children: children.length ? children : undefined };
+}
+
+function treeChart(
+  config: Record<string, unknown>,
+  theme: ThemeTokens,
+  colors: string[],
+  orient: 'LR' | 'RL' | 'TB',
+): Record<string, unknown> | null {
+  const root = treeOf(config.data);
+  if (!root || !text(root.name)) return null;
+  const direction = orient;
+  return {
+    ...base(config, theme, colors, false),
+    series: [
+      {
+        type: 'tree',
+        data: [toEchartsTree(root)],
+        top: text(config.title) ? 56 : 24,
+        left: direction === 'TB' ? 40 : 90,
+        bottom: direction === 'TB' ? 48 : 24,
+        right: direction === 'TB' ? 40 : 120,
+        orient: direction,
+        roam: true,
+        symbol: 'emptyCircle',
+        symbolSize: 8,
+        initialTreeDepth: 8,
+        expandAndCollapse: true,
+        itemStyle: { color: colors[0], borderColor: colors[0] },
+        lineStyle: { color: theme.muted, width: 1.2 },
+        label: {
+          position: direction === 'TB' ? 'bottom' : direction === 'RL' ? 'left' : 'right',
+          color: theme.text,
+          fontSize: 12,
+        },
+        leaves: {
+          label: { position: direction === 'TB' ? 'bottom' : direction === 'RL' ? 'left' : 'right' },
+        },
+      },
+    ],
+  };
+}
+
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return '—';
+  const rounded = Math.round(value * 100) / 100;
+  return Math.abs(rounded) >= 1000 ? rounded.toLocaleString('zh-CN') : String(rounded);
+}
