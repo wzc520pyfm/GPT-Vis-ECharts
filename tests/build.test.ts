@@ -90,4 +90,130 @@ data
     expect(view.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
     expect(view.html).not.toContain('<img');
   });
+
+  it('marks summary entities and draws a sparkline for ranked detail', () => {
+    const view = buildView(
+      '在 [2024年Q4](time_desc)，[总收入](metric_name) 达到 [¥520万](metric_value)，[下降](delta_value, assessment="negative")，[排名第一](rank, detail=[320, 180, 90])。',
+    );
+    expect(view.kind).toBe('html');
+    if (view.kind !== 'html') return;
+    expect(view.html).toContain('data-entity="metric_name"');
+    expect(view.html).toContain('data-entity="time_desc"');
+    expect(view.html).toContain('class="gve-chip neg"');
+    expect(view.html).toContain('gve-spark');
+  });
+
+  it('places a mind map on both sides of the root', () => {
+    const view = buildView(
+      `vis mindmap
+data
+  - name 根
+    children
+      - name 甲
+      - name 乙
+`,
+      { width: 800, height: 480 },
+    );
+    expect(view.kind).toBe('echarts');
+    if (view.kind !== 'echarts') return;
+    const series = view.option.series as { type: string; data: { value: string; x: number }[] }[];
+    expect(series[0].type).toBe('graph');
+    const root = series[0].data.find((node) => node.value === '根');
+    const left = series[0].data.find((node) => node.value === '乙');
+    const right = series[0].data.find((node) => node.value === '甲');
+    expect(left && right && root).toBeTruthy();
+    expect(right!.x).toBeGreaterThan(root!.x);
+    expect(left!.x).toBeLessThan(root!.x);
+  });
+
+  it('keeps an explicit left-to-right mind map as a tree', () => {
+    const view = buildView(`vis mindmap
+direction LR
+data
+  - name 根
+    children
+      - name 甲
+`);
+    expect(view.kind).toBe('echarts');
+    if (view.kind !== 'echarts') return;
+    const series = view.option.series as { type: string; orient: string }[];
+    expect(series[0]).toMatchObject({ type: 'tree', orient: 'LR' });
+  });
+
+  it('labels funnel stages with the conversion from the previous stage', () => {
+    const view = buildView(`vis funnel
+conversionRateLabel 转化率
+data
+  - category 访问
+    value 200
+  - category 下单
+    value 50
+`);
+    expect(view.kind).toBe('echarts');
+    if (view.kind !== 'echarts') return;
+    const series = view.option.series as { label: { formatter: (item: { dataIndex: number; name: string; value: number }) => string } }[];
+    expect(series[0].label.formatter({ dataIndex: 1, name: '下单', value: 50 })).toContain('转化率 25%');
+  });
+
+  it('uses the requested network layout', () => {
+    const view = buildView(`vis network-graph
+layout circular
+data
+  nodes
+    - name 甲
+    - name 乙
+  edges
+    - source 甲
+      target 乙
+`);
+    expect(view.kind).toBe('echarts');
+    if (view.kind !== 'echarts') return;
+    const series = view.option.series as { layout: string }[];
+    expect(series[0].layout).toBe('circular');
+  });
+
+  it('draws a liquid triangle and a packed word', () => {
+    const liquid = buildView('vis liquid\nshape triangle\npercent 0.4');
+    expect(liquid.kind).toBe('html');
+    if (liquid.kind === 'html') expect(liquid.html).toContain('<polygon');
+
+    const cloud = buildView(`vis word-cloud
+data
+  - text 销售
+    value 40
+  - text 成本
+    value 12
+`);
+    expect(cloud.kind).toBe('html');
+    if (cloud.kind === 'html') expect(cloud.html).toContain('left:');
+  });
+
+  it('explains that a venn diagram stops at three sets', () => {
+    const view = buildView(`vis venn
+data
+  - sets [甲, 乙]
+    value 1
+  - sets [丙, 丁]
+    value 1
+`);
+    expect(view.kind).toBe('error');
+    expect(view.message).toContain('三个集合');
+  });
+
+  it('does not split series when group is turned off', () => {
+    const view = buildView(`vis column
+group false
+data
+  - category 甲
+    value 1
+    group 东
+  - category 乙
+    value 2
+    group 西
+`);
+    expect(view.kind).toBe('echarts');
+    if (view.kind !== 'echarts') return;
+    const series = view.option.series as { name: string }[];
+    expect(series).toHaveLength(1);
+  });
 });

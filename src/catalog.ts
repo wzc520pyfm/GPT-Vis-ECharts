@@ -26,7 +26,7 @@ export const CHARTS: ChartSpec[] = [
   { type: 'liquid', label: '水波图', group: '统计', note: '单个 percent，0 到 1' },
   { type: 'flow-diagram', label: '流程图', group: '关系', note: 'nodes 与 edges，从左到右' },
   { type: 'network-graph', label: '网络图', group: '关系', note: '力导向关系网' },
-  { type: 'mindmap', label: '思维导图', group: '关系', note: '从左向右展开的树' },
+  { type: 'mindmap', label: '思维导图', group: '关系', note: '默认从中心向两侧展开，direction 可改成 LR 或 RL' },
   { type: 'indented-tree', label: '缩进树', group: '关系', note: '层级名单' },
   { type: 'organization-chart', label: '组织架构', group: '关系', note: '自上而下的树' },
   { type: 'fishbone-diagram', label: '鱼骨图', group: '关系', note: '结果在右，原因分列两侧' },

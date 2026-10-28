@@ -65,16 +65,45 @@ chart.update(syntax);
 chart.destroy();
 ```
 
-`render` 也接受已经解析好的对象，或一段 JSON。不以 `vis ` 开头的普通正文会按摘要排版。
+`render` 也接受已经解析好的对象，或一段 JSON。不以 `vis ` 开头的普通正文会按摘要排版，摘要里的 `[文本](metric_value)` 这类语义标记会画成标注。
+
+只要一种图时，可以用和 GPT-Vis 同名的构造函数。配置对象里不用再写 `type`：
+
+```ts
+import { Pie } from 'gptvis-echarts';
+
+const pie = Pie({ container: '#chart', theme: 'academy' });
+pie.render({
+  data: [
+    { category: '人力', value: 46 },
+    { category: '投放', value: 22 },
+  ],
+  innerRadius: 0.6,
+});
+```
+
+外层工具条默认关闭。打开后有「图表 / 代码」切换、复制语法、下载图片，以及流程图、网络图、思维导图、组织架构、缩进树和鱼骨图的缩放：
+
+```ts
+const vis = new GPTVis({
+  container: '#chart',
+  wrapper: true,
+  locale: 'zh-CN',
+});
+vis.zoomTo(1.2);
+vis.getZoom();
+```
+
+`locale` 不写时，工具条文案是英文，和 GPT-Vis 一致。
 
 ## 和原方案的取舍
 
 对话里有三条路：统一描述再适配、让模型直接写 ECharts option、把图做成 Agent 组件。这里采用第一条。
 
-- 语法跟 GPT-Vis 的公开文法对齐，已有的选图习惯可以留着。
+- 语法跟 GPT-Vis 的公开文法对齐，26 种类型和同名构造函数都可以用。已有的选图习惯可以留着。
 - 模型碰不到任意 `option`，也就执行不了它写出来的脚本。颜色只接受颜色字面量。
-- 双轴、堆叠、瀑布、桑基这些问数里常见的图在第一版里就有。
-- 思维导图画成从左到右的树，不是双向脑图。韦恩图只画二到三个集合。词云按字号排布，不做螺旋填充。
+- 思维导图默认从中心向两侧展开。网络图可以指定 `force`、`circular`、`grid`、`radial`、`concentric`，`dagre` 会排成从左到右的层次。
+- 水波图支持 `circle`、`rect`、`triangle`、`pin`。词云按字号做螺旋避让。摘要支持 GPT-Vis 那组语义实体；带数字 `detail` 的实体旁边会画一条小折线。
 
 图表字段和选图规则在 `skills/chart-visualization/SKILL.md`。
 

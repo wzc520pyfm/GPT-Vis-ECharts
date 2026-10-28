@@ -1,6 +1,10 @@
 import * as echarts from 'echarts';
 import { buildView, type ViewContext } from './build';
+import { readConfig } from './parser';
 import type { ThemeName } from './theme';
+import { copyText, downloadChart, mountVisShell, type VisShell } from './wrapper';
+
+const ZOOMABLE = new Set(['flow-diagram', 'network-graph', 'mindmap', 'indented-tree', 'organization-chart', 'fishbone-diagram']);
 
 export interface GPTVisOptions {
   container: string | HTMLElement;
@@ -8,6 +12,8 @@ export interface GPTVisOptions {
   height?: number;
   theme?: ThemeName;
   streaming?: boolean;
+  wrapper?: boolean;
+  locale?: string;
   onStatus?: (status: RenderStatus) => void;
 }
 
@@ -27,11 +33,24 @@ export class GPTVis {
   private lastOption: Record<string, unknown> | null = null;
   private lastSize = '';
   private layingOut = false;
+  private shell: VisShell | null = null;
+  private zoom = 1;
+  private sourceText = '';
 
   constructor(options: GPTVisOptions) {
     this.options = options;
     const container = resolveContainer(options.container);
     container.replaceChildren();
+    if (options.wrapper) {
+      this.shell = mountVisShell(container, options.locale, {
+        download: () => downloadChart('gptvis', this.chart, this.fallback),
+        copy: () => {
+          void copyText(this.sourceText);
+        },
+        zoomIn: () => this.zoomTo(this.getZoom() * 1.2),
+        zoomOut: () => this.zoomTo(this.getZoom() / 1.2),
+      });
+    }
     this.root = document.createElement('div');
     this.root.className = 'gve-root';
     this.chartHost = document.createElement('div');
@@ -40,7 +59,7 @@ export class GPTVis {
     this.fallback.className = 'gve-fallback';
     this.fallback.hidden = true;
     this.root.append(this.chartHost, this.fallback);
-    container.append(this.root);
+    (this.shell?.chartSlot ?? container).append(this.root);
     ensureStyles();
     this.observer = new ResizeObserver(() => {
       this.relayout();
@@ -50,6 +69,10 @@ export class GPTVis {
 
   render(input: unknown): void {
     this.lastInput = input;
+    this.sourceText = typeof input === 'string' ? input : JSON.stringify(input, null, 2);
+    this.shell?.setSource(this.sourceText);
+    const configType = readConfig(input, { streaming: this.options.streaming }).type;
+    this.shell?.setZoomVisible(ZOOMABLE.has(configType));
     const box = this.root.getBoundingClientRect();
     const context: ViewContext = {
       theme: this.options.theme,
@@ -77,6 +100,7 @@ export class GPTVis {
       this.fitChart();
       this.chart.setOption(view.option, { notMerge: true, lazyUpdate: false });
       this.relayout();
+      if (this.zoom !== 1) this.applyZoom();
       this.options.onStatus?.({ state: 'ready', message: view.message });
       return;
     }
@@ -91,6 +115,33 @@ export class GPTVis {
 
   resize(): void {
     this.relayout();
+  }
+
+  zoomTo(zoom: number): void {
+    if (!Number.isFinite(zoom)) return;
+    this.zoom = Math.min(4, Math.max(0.25, zoom));
+    this.applyZoom();
+  }
+
+  getZoom(): number {
+    if (!this.chart) return this.zoom;
+    const option = this.chart.getOption() as { series?: { zoom?: number }[] };
+    const zoom = option.series?.[0]?.zoom;
+    return typeof zoom === 'number' ? zoom : this.zoom;
+  }
+
+  private applyZoom(): void {
+    if (this.chart && this.lastOption && Array.isArray(this.lastOption.series)) {
+      const first = this.lastOption.series[0];
+      if (first && typeof first === 'object') {
+        (first as { zoom?: number }).zoom = this.zoom;
+        this.chart.setOption({ series: [{ zoom: this.zoom }] });
+      }
+      this.fallback.style.transform = '';
+      return;
+    }
+    this.fallback.style.transform = this.zoom === 1 ? '' : `scale(${this.zoom})`;
+    this.fallback.style.transformOrigin = 'center top';
   }
 
   private fitChart(): void {
@@ -133,7 +184,9 @@ export class GPTVis {
     this.observer = null;
     this.chart?.dispose();
     this.chart = null;
-    this.root.remove();
+    if (this.shell) this.shell.destroy();
+    else this.root.remove();
+    this.shell = null;
   }
 
   private showFallback(html: string, background: string): void {
@@ -185,20 +238,24 @@ const STYLES = `
 .gve-summary p, .gve-summary ul { margin: 10px 0; }
 .gve-summary h3, .gve-summary h4, .gve-summary h5 { padding-left: 0; padding-right: 0; }
 .gve-summary code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.92em; }
-.gve-chip { display: inline-block; margin: 0 2px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-weight: 600; }
-.gve-chip.delta { background: color-mix(in srgb, #2f7d4a 16%, transparent); color: #2f7d4a; }
-.gve-cloud-words { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 16px; padding: 28px 22px 36px; }
-.gve-cloud-words span { line-height: 1; font-weight: 600; }
+.gve-chip { display: inline-flex; align-items: center; gap: 4px; margin: 0 2px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-weight: 600; }
+.gve-chip.pos, .gve-chip.delta { background: color-mix(in srgb, #2f7d4a 16%, transparent); color: #2f7d4a; }
+.gve-chip.neg { background: color-mix(in srgb, #a33b32 16%, transparent); color: #a33b32; }
+.gve-chip.eq, .gve-chip.meta { background: color-mix(in srgb, var(--muted) 18%, transparent); color: var(--ink); font-weight: 600; }
+.gve-spark { display: inline-block; vertical-align: middle; }
+.gve-cloud-board { position: relative; height: 360px; margin: 8px 12px 16px; }
+.gve-cloud-board span { position: absolute; line-height: 1; font-weight: 600; white-space: nowrap; }
 .gve-liquid { display: grid; justify-items: center; align-content: center; gap: 18px; min-height: 100%; padding: 24px; }
 .gve-liquid h3 { padding: 0; }
-.gve-liquid-disc {
-  width: min(220px, 70%); aspect-ratio: 1; border-radius: 50%; position: relative; overflow: hidden;
-  background: var(--track); box-shadow: inset 0 0 0 1px var(--track);
-}
-.gve-liquid-level { position: absolute; left: 0; right: 0; bottom: 0; background: var(--fill); opacity: 0.9; }
-.gve-liquid-disc strong {
-  position: absolute; inset: 0; display: grid; place-items: center; font-size: 42px; color: var(--ink); font-weight: 600;
-}
+.gve-liquid-svg { width: min(240px, 72%); height: auto; }
+.gve-liquid-svg text { fill: var(--ink); font-size: 28px; font-weight: 600; font-family: "IBM Plex Sans", sans-serif; }
+.gve-shell { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 320px; border: 1px solid rgba(27, 23, 20, 0.12); border-radius: 16px; overflow: hidden; background: #fff; }
+.gve-shell-bar { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 10px; border-bottom: 1px solid rgba(27, 23, 20, 0.08); }
+.gve-shell-tabs, .gve-shell-actions { display: flex; gap: 6px; align-items: center; }
+.gve-shell-tab, .gve-shell-icon { border: 0; background: transparent; color: #5c564e; border-radius: 999px; padding: 6px 10px; font: 600 13px/1 "IBM Plex Sans", sans-serif; cursor: pointer; }
+.gve-shell-tab.on { background: #1b1714; color: #f7f1e8; }
+.gve-shell-chart { flex: 1; min-height: 280px; }
+.gve-shell-code { margin: 0; padding: 16px 18px; overflow: auto; flex: 1; white-space: pre-wrap; font: 13px/1.55 "IBM Plex Mono", ui-monospace, monospace; }
 .gve-venn svg, .gve-svgchart svg { width: 100%; height: auto; display: block; }
 .gve-venn text, .gve-svgchart text { fill: var(--ink); font-size: 13px; font-family: "IBM Plex Sans", sans-serif; }
 .gve-venn-name, .gve-bone { font-weight: 600; }

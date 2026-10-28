@@ -52,6 +52,9 @@ export function buildView(input: unknown, context: ViewContext = {}): View {
   }
 
   const html = markupFor(config, theme);
+  if (html?.includes('data-gve="limited"')) {
+    return { kind: 'error', html, background, message: '韦恩图只支持二到三个集合' };
+  }
   if (html) {
     return { kind: 'html', html, background, message: `${chartLabel(config.type)} · 已渲染` };
   }
@@ -137,13 +140,15 @@ function optionFor(config: Record<string, unknown>, theme: ThemeTokens, context:
     case 'treemap':
       return treemap(config, theme, colors);
     case 'network-graph':
-      return graph(config, theme, colors, 'force', context);
+      return graph(config, theme, colors, text(config.layout) || 'force', context);
     case 'flow-diagram':
-      return graph(config, theme, colors, 'flow', context);
+      return graph(config, theme, colors, 'dagre', context);
     case 'mindmap':
-      return treeChart(config, theme, colors, config.direction === 'RL' ? 'RL' : 'LR');
+      return config.direction === 'LR' || config.direction === 'RL'
+        ? treeChart(config, theme, colors, config.direction)
+        : mindmapChart(config, theme, colors, context);
     case 'indented-tree':
-      return treeChart(config, theme, colors, 'LR');
+      return treeChart(config, theme, colors, config.direction === 'RL' ? 'RL' : 'LR');
     case 'organization-chart':
       return treeChart(config, theme, colors, 'TB');
     default:
@@ -185,7 +190,7 @@ function axisCommon(theme: ThemeTokens, name?: string): Record<string, unknown> 
   };
 }
 
-function grouped(rows: Row[], xKey: string, yKey: string) {
+function grouped(rows: Row[], xKey: string, yKey: string, allowGroup = true) {
   const categories: string[] = [];
   for (const row of rows) {
     const category = text(row[xKey]);
@@ -193,7 +198,7 @@ function grouped(rows: Row[], xKey: string, yKey: string) {
   }
   const groups: string[] = [];
   for (const row of rows) {
-    if (row.group == null || row.group === '') continue;
+    if (!allowGroup || row.group == null || row.group === '') continue;
     const group = text(row.group);
     if (!groups.includes(group)) groups.push(group);
   }
@@ -218,7 +223,7 @@ function cartesian(
   const xKey = kind === 'line' || kind === 'area' ? 'time' : 'category';
   const rows = rowsOf(config.data).filter((row) => row[xKey] != null && num(row.value) != null);
   if (!rows.length) return null;
-  const split = grouped(rows, xKey, 'value');
+  const split = grouped(rows, xKey, 'value', config.group !== false);
   const horizontal = kind === 'bar';
   const stacked = config.stack === true;
   const lineWidth = num(styleOf(config).lineWidth) ?? 2;
@@ -349,8 +354,12 @@ function radar(config: Record<string, unknown>, theme: ThemeTokens, colors: stri
 }
 
 function funnel(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
-  const rows = rowsOf(config.data).filter((row) => num(row.value) != null);
+  const rows = rowsOf(config.data)
+    .filter((row) => num(row.value) != null)
+    .map((row) => ({ name: text(row.category || row.name), value: num(row.value) ?? 0 }))
+    .sort((a, b) => b.value - a.value);
   if (!rows.length) return null;
+  const rateLabel = text(config.conversionRateLabel) || '转化';
   return {
     ...base(config, theme, colors, false),
     series: [
@@ -360,10 +369,19 @@ function funnel(config: Record<string, unknown>, theme: ThemeTokens, colors: str
         top: text(config.title) ? 64 : 36,
         bottom: 16,
         width: '76%',
-        sort: 'descending',
+        sort: 'none',
         gap: 4,
-        label: { color: theme.text, formatter: '{b}  {c}' },
-        data: rows.map((row) => ({ name: text(row.category || row.name), value: num(row.value) })),
+        label: {
+          color: theme.text,
+          formatter: (item: { dataIndex?: number; name?: string; value?: number }) => {
+            const index = item.dataIndex ?? 0;
+            const previous = rows[index - 1]?.value;
+            const rate = previous ? Math.round(((item.value ?? 0) / previous) * 1000) / 10 : null;
+            const suffix = rate == null ? '' : `\n${rateLabel} ${rate}%`;
+            return `${item.name}  ${formatNumber(item.value ?? 0)}${suffix}`;
+          },
+        },
+        data: rows,
       },
     ],
   };
@@ -545,7 +563,8 @@ function sankey(config: Record<string, unknown>, theme: ThemeTokens, colors: str
   for (const row of rows) {
     for (const key of [text(row.source), text(row.target)]) if (!names.includes(key)) names.push(key);
   }
-  const align = config.nodeAlign === 'right' || config.nodeAlign === 'left' || config.nodeAlign === 'justify' ? config.nodeAlign : 'justify';
+  const requested = config.nodeAlign === 'center' ? 'justify' : config.nodeAlign;
+  const align = requested === 'right' || requested === 'left' || requested === 'justify' ? requested : 'justify';
   return {
     ...base(config, theme, colors, false),
     series: [
@@ -618,23 +637,26 @@ function graph(
   config: Record<string, unknown>,
   theme: ThemeTokens,
   colors: string[],
-  mode: 'force' | 'flow',
+  mode: string,
   context: ViewContext,
 ): Record<string, unknown> | null {
   const { nodes, edges } = graphNodes(config.data);
   if (!nodes.length) return null;
   const width = context.width || 720;
   const height = context.height || 420;
-  const positions = mode === 'flow' ? flowPositions(nodes, edges) : null;
+  const layout = mode === 'force' ? 'force' : mode === 'circular' ? 'circular' : 'none';
+  const positions = layout === 'none' ? graphPositions(nodes, edges, mode, width, height) : null;
   return {
     ...base(config, theme, colors, false),
     series: [
       {
         type: 'graph',
-        layout: positions ? 'none' : 'force',
+        layout,
         roam: true,
         draggable: true,
-        force: positions ? undefined : { repulsion: 220, edgeLength: 110, gravity: 0.08 },
+        zoom: 1,
+        force: layout === 'force' ? { repulsion: 220, edgeLength: 110, gravity: 0.08 } : undefined,
+        circular: layout === 'circular' ? { rotateLabel: false } : undefined,
         label: { show: true, color: theme.text, fontSize: 12 },
         lineStyle: { color: theme.muted, opacity: 0.55, width: 1.4 },
         edgeLabel: {
@@ -647,8 +669,8 @@ function graph(
           const place = positions?.get(text(node.name));
           return {
             name: text(node.name),
-            x: place ? (place.x / 100) * width : undefined,
-            y: place ? (place.y / 100) * height : undefined,
+            x: place?.x,
+            y: place?.y,
             symbolSize: 42,
             itemStyle: { color: colors[index % colors.length] },
           };
@@ -661,6 +683,87 @@ function graph(
       },
     ],
   };
+}
+
+function graphPositions(
+  nodes: Row[],
+  edges: Row[],
+  mode: string,
+  width: number,
+  height: number,
+): Map<string, { x: number; y: number }> {
+  const names = nodes.map((node) => text(node.name));
+  if (mode === 'grid') return gridPositions(names, width, height);
+  if (mode === 'radial' || mode === 'concentric') return ringPositions(names, edges, mode, width, height);
+  const layered = flowPositions(nodes, edges);
+  const positions = new Map<string, { x: number; y: number }>();
+  for (const [name, place] of layered) {
+    positions.set(name, { x: (place.x / 100) * width, y: (place.y / 100) * height });
+  }
+  return positions;
+}
+
+function gridPositions(names: string[], width: number, height: number): Map<string, { x: number; y: number }> {
+  const columns = Math.max(1, Math.ceil(Math.sqrt(names.length)));
+  const rows = Math.ceil(names.length / columns);
+  const positions = new Map<string, { x: number; y: number }>();
+  names.forEach((name, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    positions.set(name, {
+      x: ((column + 1) / (columns + 1)) * width,
+      y: ((row + 1) / (rows + 1)) * height,
+    });
+  });
+  return positions;
+}
+
+function ringPositions(
+  names: string[],
+  edges: Row[],
+  mode: string,
+  width: number,
+  height: number,
+): Map<string, { x: number; y: number }> {
+  const degree = new Map(names.map((name) => [name, 0]));
+  for (const edge of edges) {
+    for (const key of [text(edge.source), text(edge.target)]) {
+      if (degree.has(key)) degree.set(key, (degree.get(key) ?? 0) + 1);
+    }
+  }
+  const ordered =
+    mode === 'concentric'
+      ? [...names].sort((a, b) => (degree.get(b) ?? 0) - (degree.get(a) ?? 0))
+      : names;
+  const center = mode === 'radial' ? ordered[0] : ordered[0];
+  const layers = new Map<string, number>([[center, 0]]);
+  if (mode === 'radial') {
+    for (let pass = 0; pass < names.length; pass += 1) {
+      for (const edge of edges) {
+        const source = layers.get(text(edge.source));
+        const target = layers.get(text(edge.target));
+        if (source != null && target == null) layers.set(text(edge.target), source + 1);
+        if (target != null && source == null) layers.set(text(edge.source), target + 1);
+      }
+    }
+  } else {
+    ordered.forEach((name, index) => layers.set(name, Math.floor(index / Math.max(4, Math.ceil(ordered.length / 4)))));
+  }
+  const groups = new Map<number, string[]>();
+  for (const name of names) {
+    const layer = layers.get(name) ?? 1;
+    groups.set(layer, [...(groups.get(layer) ?? []), name]);
+  }
+  const positions = new Map<string, { x: number; y: number }>();
+  const maxLayer = Math.max(...groups.keys(), 1);
+  for (const [layer, group] of groups) {
+    const radius = layer === 0 ? 0 : (Math.min(width, height) / 2) * (0.28 + (0.62 * layer) / maxLayer);
+    group.forEach((name, index) => {
+      const angle = (index / group.length) * Math.PI * 2 - Math.PI / 2;
+      positions.set(name, { x: width / 2 + Math.cos(angle) * radius, y: height / 2 + Math.sin(angle) * radius });
+    });
+  }
+  return positions;
 }
 
 function flowPositions(nodes: Row[], edges: Row[]): Map<string, { x: number; y: number }> {
@@ -695,6 +798,129 @@ function flowPositions(nodes: Row[], edges: Row[]): Map<string, { x: number; y: 
     });
   }
   return positions;
+}
+
+function mindmapChart(
+  config: Record<string, unknown>,
+  theme: ThemeTokens,
+  colors: string[],
+  context: ViewContext,
+): Record<string, unknown> | null {
+  const root = treeOf(config.data);
+  if (!root || !text(root.name)) return null;
+  const width = context.width || 720;
+  const height = context.height || 420;
+  const nodes: { id: string; name: string; x: number; y: number; color: string; side: number }[] = [];
+  const links: { source: string; target: string }[] = [];
+  let seq = 0;
+  const nextId = () => `m${seq++}`;
+
+  const children = rowsOf(root.children);
+  const right = children.filter((_, index) => index % 2 === 0);
+  const left = children.filter((_, index) => index % 2 === 1);
+  const rootId = nextId();
+  const rightBlock = layoutMindmapForest(right, 168, 1, colors, nodes, links, nextId);
+  const leftBlock = layoutMindmapForest(left, -168, -1, colors, nodes, links, nextId);
+  nodes.unshift({ id: rootId, name: text(root.name), x: 0, y: 0, color: colors[0], side: 0 });
+  for (const child of [...rightBlock, ...leftBlock]) links.push({ source: rootId, target: child });
+
+  const xs = nodes.map((node) => node.x);
+  const ys = nodes.map((node) => node.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const spanX = Math.max(maxX - minX, 1);
+  const spanY = Math.max(maxY - minY, 1);
+  const scale = Math.min((width - 160) / spanX, (height - 80) / spanY);
+  return {
+    ...base(config, theme, colors, false),
+    series: [
+      {
+        type: 'graph',
+        layout: 'none',
+        roam: true,
+        zoom: 1,
+        label: { color: theme.text, fontSize: 12 },
+        lineStyle: { color: theme.muted, width: 1.2 },
+        data: nodes.map((node) => ({
+          name: node.id,
+          value: node.name,
+          x: width / 2 + (node.x - (minX + maxX) / 2) * scale,
+          y: height / 2 + (node.y - (minY + maxY) / 2) * scale,
+          symbol: 'circle',
+          symbolSize: node.side === 0 ? 14 : 9,
+          itemStyle: { color: node.color },
+          label: {
+            show: true,
+            position: node.side < 0 ? 'left' : 'right',
+            formatter: node.name,
+            color: theme.text,
+          },
+        })),
+        links,
+      },
+    ],
+  };
+}
+
+function layoutMindmapForest(
+  rows: Row[],
+  x: number,
+  side: 1 | -1,
+  colors: string[],
+  nodes: { id: string; name: string; x: number; y: number; color: string; side: number }[],
+  links: { source: string; target: string }[],
+  nextId: () => string,
+): string[] {
+  let cursor = 0;
+  const ids: string[] = [];
+  rows.forEach((row, index) => {
+    const color = colors[index % colors.length];
+    const id = layoutMindmapNode(row, x, cursor, side, color, nodes, links, nextId);
+    ids.push(id);
+    cursor += mindmapHeight(row);
+  });
+  const block = mindmapHeightOfRows(rows);
+  const shift = block / 2;
+  for (const node of nodes) {
+    if (Math.sign(node.x) === side) node.y -= shift;
+  }
+  return ids;
+}
+
+function layoutMindmapNode(
+  row: Row,
+  x: number,
+  yTop: number,
+  side: 1 | -1,
+  color: string,
+  nodes: { id: string; name: string; x: number; y: number; color: string; side: number }[],
+  links: { source: string; target: string }[],
+  nextId: () => string,
+): string {
+  const id = nextId();
+  const children = rowsOf(row.children);
+  const height = mindmapHeight(row);
+  nodes.push({ id, name: text(row.name || row.category || '未命名'), x, y: yTop + height / 2, color, side });
+  let cursor = yTop;
+  for (const child of children) {
+    const childId = layoutMindmapNode(child, x + side * 148, cursor, side, color, nodes, links, nextId);
+    links.push({ source: id, target: childId });
+    cursor += mindmapHeight(child);
+  }
+  return id;
+}
+
+function mindmapHeight(row: Row): number {
+  const children = rowsOf(row.children);
+  if (!children.length) return 42;
+  return children.reduce((sum, child) => sum + mindmapHeight(child), 0);
+}
+
+function mindmapHeightOfRows(rows: Row[]): number {
+  if (!rows.length) return 0;
+  return rows.reduce((sum, row) => sum + mindmapHeight(row), 0);
 }
 
 function toEchartsTree(node: Row): Record<string, unknown> {

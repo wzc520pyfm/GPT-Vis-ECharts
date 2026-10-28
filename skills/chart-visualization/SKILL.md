@@ -53,9 +53,9 @@ style
 | 流量拆分 | `sankey` | `source`, `target`, `value` |
 | 层级面积 | `treemap` | `name`, `value`, nested `children` |
 | 词频 | `word-cloud` | `text`, `value` |
-| 一个百分比 | `liquid` | `percent` from 0 to 1 |
+| 一个百分比 | `liquid` | `percent` from 0 to 1. Optional `shape` `circle`, `rect`, `triangle`, or `pin` |
 | 步骤 | `flow-diagram` | `data` with `nodes` (`name`) and `edges` (`source`, `target`, optional `name`) |
-| 关系网 | `network-graph` | same nodes and edges |
+| 关系网 | `network-graph` | same nodes and edges. Optional `layout` `force`, `circular`, `grid`, `radial`, `concentric`, or `dagre` |
 | 原因拆解 | `mindmap` or `fishbone-diagram` | one root `name` and nested `children` |
 | 名单层级 | `indented-tree` | root `name` and `children` |
 | 上下级 | `organization-chart` | root `name` and `children` |

@@ -60,19 +60,47 @@ function percentNumber(value: unknown): number | null {
   return Math.max(0, Math.min(1, ratio));
 }
 
+let liquidSeq = 0;
+
 export function renderLiquid(config: Record<string, unknown>, theme: ThemeTokens): string | null {
   const ratio = percentNumber(config.percent);
   if (ratio == null) return null;
   const title = text(config.title);
   const fill = theme.palette[0];
+  const shape = config.shape === 'rect' || config.shape === 'pin' || config.shape === 'triangle' ? config.shape : 'circle';
+  const id = `gve-liquid-${liquidSeq++}`;
+  const level = 188 - ratio * 156;
+  const wave = liquidWave(level);
+  const clip =
+    shape === 'rect'
+      ? `<rect x="28" y="18" width="144" height="164" rx="10"/>`
+      : shape === 'triangle'
+        ? `<polygon points="100,14 186,186 14,186"/>`
+        : shape === 'pin'
+          ? `<path d="M100 12c34 0 58 26 58 58 0 46-58 112-58 112S42 116 42 70c0-32 24-58 58-58z"/>`
+          : `<circle cx="100" cy="100" r="86"/>`;
   return `
     <div class="gve-liquid">
       ${title ? `<h3>${escapeHtml(title)}</h3>` : ''}
-      <div class="gve-liquid-disc" style="--fill:${fill};--ink:${theme.text};--track:${theme.grid}">
-        <div class="gve-liquid-level" style="height:${ratio * 100}%"></div>
-        <strong>${formatPercent(ratio)}</strong>
-      </div>
+      <svg class="gve-liquid-svg" viewBox="0 0 200 200" role="img" aria-label="${escapeHtml(title || '水波图')}">
+        <defs><clipPath id="${id}">${clip}</clipPath></defs>
+        <g clip-path="url(#${id})">
+          <rect width="200" height="200" fill="${theme.grid}"/>
+          <path d="${wave}" fill="${fill}" fill-opacity="0.9"/>
+        </g>
+        <text x="100" y="108" text-anchor="middle">${formatPercent(ratio)}</text>
+      </svg>
     </div>`;
+}
+
+function liquidWave(level: number): string {
+  const amplitude = 7;
+  let path = `M -10 ${level + amplitude}`;
+  for (let x = -10; x <= 220; x += 12) {
+    const y = level + Math.sin((x / 200) * Math.PI * 4) * amplitude;
+    path += ` L ${x} ${y.toFixed(1)}`;
+  }
+  return `${path} L 220 210 L -10 210 Z`;
 }
 
 export function renderTable(config: Record<string, unknown>, theme: ThemeTokens): string | null {
@@ -120,22 +148,55 @@ export function renderSummaryView(config: Record<string, unknown>, theme: ThemeT
 export function renderWordCloud(config: Record<string, unknown>, theme: ThemeTokens): string | null {
   const words = rowsOf(config.data)
     .map((row) => ({ text: text(row.text || row.name || row.word), value: num(row.value) ?? 0 }))
-    .filter((word) => word.text);
+    .filter((word) => word.text)
+    .sort((a, b) => b.value - a.value);
   if (!words.length) return null;
   const max = Math.max(...words.map((word) => word.value), 1);
+  const placed = placeWords(
+    words.map((word) => {
+      const size = 14 + Math.round((Math.max(word.value, 0) / max) * 40);
+      return { ...word, size, width: Math.max(size, word.text.length * size * 0.62), height: size * 1.15 };
+    }),
+  );
   const title = text(config.title);
-  const spans = words
+  const spans = placed
     .map((word, index) => {
-      const size = 14 + Math.round((Math.max(word.value, 0) / max) * 42);
       const color = theme.palette[index % theme.palette.length];
-      return `<span style="font-size:${size}px;color:${color}">${escapeHtml(word.text)}</span>`;
+      return `<span style="left:${word.x}px;top:${word.y}px;font-size:${word.size}px;color:${color}">${escapeHtml(word.text)}</span>`;
     })
     .join('');
   return `
     <div class="gve-cloud" style="--ink:${theme.text}">
       ${title ? `<h3>${escapeHtml(title)}</h3>` : ''}
-      <div class="gve-cloud-words">${spans}</div>
+      <div class="gve-cloud-board">${spans}</div>
     </div>`;
+}
+
+function placeWords<T extends { width: number; height: number }>(words: T[]): (T & { x: number; y: number })[] {
+  const board = { width: 640, height: 360 };
+  const boxes: { x: number; y: number; width: number; height: number }[] = [];
+  return words.map((word) => {
+    const cx = board.width / 2;
+    const cy = board.height / 2;
+    let x = cx - word.width / 2;
+    let y = cy - word.height / 2;
+    for (let step = 0; step < 700; step += 1) {
+      const angle = step * 0.45;
+      const radius = step * 2.4;
+      x = cx + Math.cos(angle) * radius - word.width / 2;
+      y = cy + Math.sin(angle) * radius * 0.72 - word.height / 2;
+      const box = { x, y, width: word.width, height: word.height };
+      const inside = x >= 4 && y >= 4 && x + word.width <= board.width - 4 && y + word.height <= board.height - 4;
+      if (inside && boxes.every((other) => !overlaps(box, other))) break;
+    }
+    boxes.push({ x, y, width: word.width, height: word.height });
+    return { ...word, x: Math.round(x), y: Math.round(y) };
+  });
+}
+
+function overlaps(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): boolean {
+  const pad = 6;
+  return a.x < b.x + b.width + pad && a.x + a.width + pad > b.x && a.y < b.y + b.height + pad && a.y + a.height + pad > b.y;
 }
 
 export function renderVenn(config: Record<string, unknown>, theme: ThemeTokens): string | null {
@@ -147,7 +208,10 @@ export function renderVenn(config: Record<string, unknown>, theme: ThemeTokens):
   for (const item of items) {
     for (const set of item.sets) if (!names.includes(set)) names.push(set);
   }
-  if (names.length < 2 || names.length > 3) return null;
+  if (names.length < 2) return null;
+  if (names.length > 3) {
+    return `<div class="gve-status" data-gve="limited"><p>韦恩图只画两个或三个集合。</p><span>这份数据有 ${names.length} 个集合。</span></div>`;
+  }
   const find = (...sets: string[]) =>
     items.find((item) => item.sets.length === sets.length && sets.every((set) => item.sets.includes(set)));
   const title = text(config.title);

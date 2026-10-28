@@ -8,6 +8,35 @@ export { GPTVisChart } from './react';
 export type { GPTVisChartProps } from './react';
 export { GPTVis };
 export type { GPTVisOptions, RenderStatus } from './runtime';
+export {
+  Area,
+  Bar,
+  Boxplot,
+  Column,
+  DualAxes,
+  FishboneDiagram,
+  FlowDiagram,
+  Funnel,
+  Histogram,
+  IndentedTree,
+  Line,
+  Liquid,
+  Mindmap,
+  NetworkGraph,
+  OrganizationChart,
+  Pie,
+  Radar,
+  Sankey,
+  Scatter,
+  Summary,
+  Table,
+  Treemap,
+  Venn,
+  Violin,
+  Waterfall,
+  WordCloud,
+} from './charts';
+export type { ChartHandle } from './charts';
 export { resolveTheme } from './theme';
 export type { ThemeName } from './theme';
 
