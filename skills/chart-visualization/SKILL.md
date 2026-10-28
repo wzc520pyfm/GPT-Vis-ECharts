@@ -60,7 +60,7 @@ style
 | 名单层级 | `indented-tree` | root `name` and `children` |
 | 上下级 | `organization-chart` | root `name` and `children` |
 | 明细 | `table` | one object per row; keys become columns |
-| 结论 | plain markdown, no `vis` line | headings, lists, **bold**, and `[174 万](metric_value)` |
+| 结论 | plain markdown, no `vis` line | headings, lists, **bold**, and entities such as `[174 万](metric_value)` or `[+7%](delta_value, assessment="positive")` |
 
 Prefer `line`, `column`, `bar`, `pie`, `dual-axes`, `waterfall`, or `table` for business questions. Use a relationship chart only when the structure itself is the answer.
 
@@ -72,5 +72,5 @@ Prefer `line`, `column`, `bar`, `pie`, `dual-axes`, `waterfall`, or `table` for 
 - Do not invent a chart type outside the table. There is no `heatmap` in this renderer.
 - Do not emit scripts, URLs, or event handlers inside labels. Labels are text.
 - For a waterfall, a total row sets the running height. A following total without `value` uses the running sum.
-- A mind map is drawn as a left-to-right tree. A fishbone puts the result on the right and causes on both sides.
+- A mind map opens to both sides unless `direction` is `LR` or `RL`. A fishbone puts the result on the right and causes on both sides.
 - Venn diagrams support two or three sets.
