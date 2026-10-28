@@ -74,7 +74,8 @@ export class GPTVis {
       this.chartHost.hidden = false;
       if (!this.chart) this.chart = echarts.init(this.chartHost, undefined, { renderer: 'canvas' });
       this.lastOption = view.option;
-      this.chart.setOption(view.option, { notMerge: true });
+      this.fitChart();
+      this.chart.setOption(view.option, { notMerge: true, lazyUpdate: false });
       this.relayout();
       this.options.onStatus?.({ state: 'ready', message: view.message });
       return;
@@ -92,19 +93,35 @@ export class GPTVis {
     this.relayout();
   }
 
+  private fitChart(): void {
+    if (!this.chart) return;
+    const width = this.root.clientWidth;
+    const height = this.root.clientHeight;
+    if (width < 2 || height < 2) return;
+    if (this.chart.getWidth() === width && this.chart.getHeight() === height) return;
+    this.chart.resize({ width, height });
+  }
+
   private relayout(): void {
     if (this.layingOut || !this.chart || !this.lastOption) return;
-    const size = `${this.root.clientWidth}x${this.root.clientHeight}`;
+    const width = this.root.clientWidth;
+    const height = this.root.clientHeight;
+    if (width < 2 || height < 2) return;
+    const size = `${width}x${height}`;
+    const mismatched = this.chart.getWidth() !== width || this.chart.getHeight() !== height;
     this.layingOut = true;
     try {
-      this.chart.resize();
-      if (size === this.lastSize || this.root.clientWidth < 2) return;
+      if (mismatched) this.chart.resize({ width, height });
+      if (size === this.lastSize && !mismatched) return;
       this.lastSize = size;
       const option = this.lastOption;
       requestAnimationFrame(() => {
         if (!this.chart || this.lastOption !== option) return;
-        this.chart.resize();
-        this.chart.setOption(option, { notMerge: true });
+        const nextWidth = this.root.clientWidth;
+        const nextHeight = this.root.clientHeight;
+        if (nextWidth < 2 || nextHeight < 2) return;
+        this.chart.resize({ width: nextWidth, height: nextHeight });
+        this.chart.setOption(option, { notMerge: true, lazyUpdate: false });
       });
     } finally {
       this.layingOut = false;

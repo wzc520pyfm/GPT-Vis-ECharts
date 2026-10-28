@@ -156,7 +156,9 @@ function base(config: Record<string, unknown>, theme: ThemeTokens, colors: strin
   return {
     color: colors,
     backgroundColor: 'transparent',
-    animationDuration: 420,
+    animation: false,
+    animationDuration: 0,
+    animationDurationUpdate: 0,
     textStyle: { color: theme.text, fontFamily: 'IBM Plex Sans, Source Sans 3, sans-serif' },
     title: title
       ? { text: title, left: 8, top: 6, textStyle: { color: theme.text, fontSize: 16, fontWeight: 600 } }
