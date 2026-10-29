@@ -9,8 +9,8 @@
     "noEmit": true,
     "isolatedModules": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"],
+    "types": ["node", "vite/client"],
     "useDefineForClassFields": true
   },
-  "include": ["src", "playground", "tests", "vite.config.ts", "vitest.config.ts"]
+  "include": ["./*.ts", "./*.tsx", "vite.config.ts"]
 }

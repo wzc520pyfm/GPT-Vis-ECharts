@@ -1,59 +1,19 @@
 {
-  "name": "gptvis-echarts",
-  "version": "0.2.0",
-  "description": "ECharts adapter for GPT-Vis. Same vis syntax, GPTVis class, and chart constructors, rendered with Apache ECharts.",
-  "keywords": ["gpt-vis", "echarts", "vis", "llm", "charts"],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/wzc520pyfm/GPT-Vis-ECharts.git"
-  },
+  "private": true,
+  "name": "gptvis-echarts-workspace",
+  "description": "Monorepo for the GPT-Vis ECharts adapter and its playground.",
   "type": "module",
-  "license": "MIT",
-  "sideEffects": false,
-  "files": ["dist", "src", "skills"],
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./react": {
-      "types": "./dist/react.d.ts",
-      "import": "./dist/react.js"
-    }
-  },
   "engines": {
     "node": ">=20"
   },
+  "workspaces": [
+    "packages/*",
+    "playground"
+  ],
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 4317 --strictPort",
-    "build:lib": "tsc -p tsconfig.lib.json",
-    "build:site": "vite build",
-    "build": "npm run build:lib && npm run build:site",
-    "prepublishOnly": "npm run build:lib",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.lib.json --noEmit",
-    "test": "vitest run && npm run build:lib && node scripts/check-package.mjs"
-  },
-  "dependencies": {
-    "echarts": "^5.6.0"
-  },
-  "peerDependencies": {
-    "react": ">=18",
-    "react-dom": ">=18"
-  },
-  "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "react-dom": { "optional": true }
-  },
-  "devDependencies": {
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
-    "@vitejs/plugin-react": "^5.1.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "typescript": "^5.9.3",
-    "vite": "^7.1.12",
-    "vitest": "^3.2.4"
+    "dev": "npm run build -w gptvis-echarts && npm run dev -w playground",
+    "build": "npm run build -w gptvis-echarts && npm run build -w playground",
+    "test": "npm test -w gptvis-echarts",
+    "typecheck": "npm run typecheck -w gptvis-echarts && npm run build -w gptvis-echarts && npm run typecheck -w playground"
   }
 }
