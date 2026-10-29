@@ -1,6 +1,5 @@
 node_modules
 dist
-dist-site
 .netlify
 .DS_Store
 *.local
