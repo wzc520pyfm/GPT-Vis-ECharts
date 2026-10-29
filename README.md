@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-打开 http://127.0.0.1:4317 。左边改语法，右边看图。可以按 token 把一段示例重新流出来。
+打开 http://127.0.0.1:4317 。左边改语法，右边看图。可以按 token 把一段示例重新流出来。线上同一套演示在 https://gptvis-echarts.netlify.app 。
 
 ```bash
 npm test
