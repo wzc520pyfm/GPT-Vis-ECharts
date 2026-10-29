@@ -1,4 +1,4 @@
-import { SUPPORTED, chartLabel } from './catalog';
+import { SUPPORTED, chartLabel } from './catalog.js';
 import {
   num,
   renderFishbone,
@@ -14,9 +14,9 @@ import {
   text,
   treeOf,
   type Row,
-} from './markup';
-import { readConfig } from './parser';
-import { resolveTheme, safeColor, safePalette, type ThemeName, type ThemeTokens } from './theme';
+} from './markup.js';
+import { readConfig } from './parser.js';
+import { resolveTheme, safeColor, safePalette, type ThemeName, type ThemeTokens } from './theme.js';
 
 export interface ViewContext {
   theme?: ThemeName;

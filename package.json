@@ -1,7 +1,12 @@
 {
   "name": "gptvis-echarts",
   "version": "0.2.0",
-  "description": "AI-native vis syntax rendered with Apache ECharts. Compatible with the GPT-Vis grammar, without AntV.",
+  "description": "ECharts adapter for GPT-Vis. Same vis syntax, GPTVis class, and chart constructors, rendered with Apache ECharts.",
+  "keywords": ["gpt-vis", "echarts", "vis", "llm", "charts"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wzc520pyfm/GPT-Vis-ECharts.git"
+  },
   "type": "module",
   "license": "MIT",
   "sideEffects": false,
@@ -12,13 +17,23 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
     }
+  },
+  "engines": {
+    "node": ">=20"
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 4317 --strictPort",
-    "build": "tsc -p tsconfig.lib.json && vite build",
+    "build:lib": "tsc -p tsconfig.lib.json",
+    "build:site": "vite build",
+    "build": "npm run build:lib && npm run build:site",
+    "prepublishOnly": "npm run build:lib",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.lib.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run && npm run build:lib && node scripts/check-package.mjs"
   },
   "dependencies": {
     "echarts": "^5.6.0"

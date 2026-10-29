@@ -1,6 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
-import { GPTVis, type GPTVisOptions, type RenderStatus } from './runtime';
-import type { ThemeName } from './theme';
+import { GPTVis, type GPTVisOptions, type RenderStatus } from './runtime.js';
+import type { ThemeName } from './theme.js';
 
 export interface GPTVisChartProps {
   content: string | Record<string, unknown>;
