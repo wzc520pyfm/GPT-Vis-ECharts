@@ -1,6 +1,6 @@
 [build]
   command = "npm run build"
-  publish = "dist-site"
+  publish = "playground/dist"
 
 [[redirects]]
   from = "/*"

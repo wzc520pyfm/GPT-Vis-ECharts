@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CHARTS } from '../src/catalog';
-import { EXAMPLES } from '../src/examples';
-import { readConfig } from '../src/parser';
-import { GPTVisChart } from '../src/react';
-import type { RenderStatus } from '../src/runtime';
-import type { ThemeName } from '../src/theme';
+import { CHARTS, readConfig, type RenderStatus, type ThemeName } from 'gptvis-echarts';
+import { GPTVisChart } from 'gptvis-echarts/react';
+import { EXAMPLES } from './examples';
 
 const THEMES: { id: ThemeName; label: string }[] = [
   { id: 'default', label: '默认' },
