@@ -1,8 +1,8 @@
 import * as echarts from 'echarts';
-import { buildView, type ViewContext } from './build';
-import { readConfig } from './parser';
-import type { ThemeName } from './theme';
-import { copyText, downloadChart, mountVisShell, type VisShell } from './wrapper';
+import { buildView, type ViewContext } from './build.js';
+import { readConfig } from './parser.js';
+import type { ThemeName } from './theme.js';
+import { copyText, downloadChart, mountVisShell, type VisShell } from './wrapper.js';
 
 const ZOOMABLE = new Set(['flow-diagram', 'network-graph', 'mindmap', 'indented-tree', 'organization-chart', 'fishbone-diagram']);
 
@@ -67,7 +67,7 @@ export class GPTVis {
     this.observer.observe(this.root);
   }
 
-  render(input: unknown): void {
+  render(input: string | Record<string, unknown>): void {
     this.lastInput = input;
     this.sourceText = typeof input === 'string' ? input : JSON.stringify(input, null, 2);
     this.shell?.setSource(this.sourceText);

@@ -1,13 +1,12 @@
-import { GPTVis, type GPTVisOptions } from './runtime';
+import { GPTVis, type GPTVisOptions } from './runtime.js';
 
-export { CHARTS, chartLabel } from './catalog';
-export { buildView } from './build';
-export { isVisSyntax, parse, readConfig } from './parser';
-export type { ParsedConfig, ParseOptions } from './parser';
-export { GPTVisChart } from './react';
-export type { GPTVisChartProps } from './react';
+export { CHARTS, chartLabel } from './catalog.js';
+export { buildView } from './build.js';
+export { isVisSyntax, parse, readConfig } from './parser.js';
+export type { ParsedConfig, ParseOptions } from './parser.js';
 export { GPTVis };
-export type { GPTVisOptions, RenderStatus } from './runtime';
+export type { GPTVisOptions, RenderStatus } from './runtime.js';
+export type { GPTVisOptions as VisualizationOptions } from './runtime.js';
 export {
   Area,
   Bar,
@@ -35,10 +34,10 @@ export {
   Violin,
   Waterfall,
   WordCloud,
-} from './charts';
-export type { ChartHandle } from './charts';
-export { resolveTheme } from './theme';
-export type { ThemeName } from './theme';
+} from './charts.js';
+export type { ChartHandle } from './charts.js';
+export { resolveTheme } from './theme.js';
+export type { ThemeName, ThemeName as VisualizationTheme } from './theme.js';
 
 /**
  * Framework-agnostic handle for Vue, Svelte, or plain DOM.
@@ -47,7 +46,7 @@ export type { ThemeName } from './theme';
 export function bindGPTVis(container: string | HTMLElement, options?: Omit<GPTVisOptions, 'container'>) {
   const vis = new GPTVis({ container, ...options });
   return {
-    update(content: unknown) {
+    update(content: string | Record<string, unknown>) {
       vis.render(content);
     },
     resize() {

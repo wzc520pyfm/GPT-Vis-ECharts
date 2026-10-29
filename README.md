@@ -1,6 +1,6 @@
 # GPTVis ECharts
 
-用 GPT-Vis 那套 `vis` 语法出图，渲染引擎只有 Apache ECharts。模型不用学 ECharts `option`，业务代码也不用装 AntV。
+GPT-Vis 的 ECharts 适配层。公开入口和 `@antv/gpt-vis` 对齐：`GPTVis`、`parse`、`isVisSyntax`，以及 26 个同名构造函数。模型继续写 `vis` 语法，图由 Apache ECharts 绘制，不安装 AntV。
 
 语法、流式更新和容错跟在对话里走：一行没写完就先画已经完整的部分。主题有默认、学院和深色。26 种图里，统计图走 ECharts，表格、摘要、水波、词云、韦恩、小提琴和鱼骨走同一套运行时里的 HTML。
 
@@ -47,10 +47,10 @@ const vis = new GPTVis({ container: '#chart', streaming: true });
 if (buffer.trim().startsWith('vis ')) vis.render(buffer);
 ```
 
-React：
+React 单独入口，不装 React 也能用主包：
 
 ```tsx
-import { GPTVisChart } from 'gptvis-echarts';
+import { GPTVisChart } from 'gptvis-echarts/react';
 
 <GPTVisChart content={buffer} theme="dark" streaming />
 ```
@@ -109,4 +109,4 @@ vis.getZoom();
 
 ## 许可
 
-MIT。`vis` 文法的设计来自 AntV GPT-Vis，本仓库的解析器和渲染器是独立实现。
+MIT，见 `LICENSE`。`vis` 文法的设计来自 AntV GPT-Vis，本仓库的解析器和渲染器是独立实现。

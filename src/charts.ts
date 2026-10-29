@@ -1,4 +1,4 @@
-import { GPTVis, type GPTVisOptions } from './runtime';
+import { GPTVis, type GPTVisOptions } from './runtime.js';
 
 const CHART_TYPES = [
   'line',

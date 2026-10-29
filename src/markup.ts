@@ -1,6 +1,6 @@
-import { chartLabel } from './catalog';
-import type { ThemeTokens } from './theme';
-import { escapeHtml, renderSummary } from './text';
+import { chartLabel } from './catalog.js';
+import type { ThemeTokens } from './theme.js';
+import { escapeHtml, renderSummary } from './text.js';
 
 export interface Row {
   [key: string]: unknown;

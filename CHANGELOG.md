@@ -2,6 +2,8 @@
 
 ## 0.2.0
 
+- 主入口对齐 GPT-Vis：`GPTVis`、`parse`、`isVisSyntax` 和 26 个同名构造函数。发布物是 Node 可直接加载的 ESM，主入口不依赖 React。
+- React 组件从 `gptvis-echarts/react` 引入。
 - 补齐和 GPT-Vis 同名的 26 个图表构造函数，以及 `wrapper`、`locale`、`zoomTo`、`getZoom`。
 - 思维导图默认双向展开。网络图接受 force、circular、grid、radial、concentric、dagre。
 - 漏斗图按上一阶段计算转化率。`group: false` 时不再按 group 拆系列。
