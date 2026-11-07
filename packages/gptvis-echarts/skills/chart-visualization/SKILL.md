@@ -25,7 +25,7 @@ data
     group 华东
 ```
 
-`theme` is `default`, `academy`, or `dark`. Colors go under `style`, and only as real colors (`#rrggbb`, `rgb()`, or a CSS color name):
+`theme` is `default`, `light`, `academy`, or `dark`. Colors go under `style`, and only as real colors (`#rrggbb`, `rgb()`, or a CSS color name):
 
 ```vis
 vis bar

@@ -5,6 +5,7 @@ import { EXAMPLES } from './examples';
 
 const THEMES: { id: ThemeName; label: string }[] = [
   { id: 'default', label: '默认' },
+  { id: 'light', label: '浅色' },
   { id: 'academy', label: '学院' },
   { id: 'dark', label: '深色' },
 ];

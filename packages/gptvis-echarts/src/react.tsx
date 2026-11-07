@@ -1,10 +1,10 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import { GPTVis, type GPTVisOptions, type RenderStatus } from './runtime.js';
-import type { ThemeName } from './theme.js';
+import type { VisualizationTheme } from './theme.js';
 
 export interface GPTVisChartProps {
   content: string | Record<string, unknown>;
-  theme?: ThemeName;
+  theme?: VisualizationTheme;
   streaming?: boolean;
   className?: string;
   style?: CSSProperties;

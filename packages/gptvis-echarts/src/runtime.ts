@@ -1,7 +1,7 @@
 import * as echarts from 'echarts';
 import { buildView, type ViewContext } from './build.js';
 import { readConfig } from './parser.js';
-import type { ThemeName } from './theme.js';
+import type { VisualizationTheme } from './theme.js';
 import { copyText, downloadChart, mountVisShell, type VisShell } from './wrapper.js';
 
 const ZOOMABLE = new Set(['flow-diagram', 'network-graph', 'mindmap', 'indented-tree', 'organization-chart', 'fishbone-diagram']);
@@ -10,7 +10,7 @@ export interface GPTVisOptions {
   container: string | HTMLElement;
   width?: number;
   height?: number;
-  theme?: ThemeName;
+  theme?: VisualizationTheme;
   streaming?: boolean;
   wrapper?: boolean;
   locale?: string;

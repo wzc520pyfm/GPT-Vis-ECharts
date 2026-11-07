@@ -22,6 +22,10 @@
     "./react": {
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js"
+    },
+    "./syntax": {
+      "types": "./dist/syntax.d.ts",
+      "import": "./dist/syntax.js"
     }
   },
   "engines": {
@@ -33,10 +37,8 @@
     "typecheck": "tsc -p tsconfig.check.json --noEmit",
     "test": "vitest run && npm run build && node scripts/check-package.mjs"
   },
-  "dependencies": {
-    "echarts": "^5.6.0"
-  },
   "peerDependencies": {
+    "echarts": "^5.6.0 || ^6.0.0",
     "react": ">=18",
     "react-dom": ">=18"
   },
@@ -46,6 +48,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.2",
+    "echarts": "^5.6.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

@@ -37,7 +37,15 @@ export {
 } from './charts.js';
 export type { ChartHandle } from './charts.js';
 export { resolveTheme } from './theme.js';
-export type { ThemeName, ThemeName as VisualizationTheme } from './theme.js';
+export type {
+  ChartType,
+  ResolvedThemeTokens,
+  ThemeName,
+  ThemeSpec,
+  ThemeStyle,
+  ThemeTokens,
+  VisualizationTheme,
+} from './theme.js';
 
 /**
  * Framework-agnostic handle for Vue, Svelte, or plain DOM.

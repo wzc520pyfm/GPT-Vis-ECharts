@@ -16,10 +16,10 @@ import {
   type Row,
 } from './markup.js';
 import { readConfig } from './parser.js';
-import { resolveTheme, safeColor, safePalette, type ThemeName, type ThemeTokens } from './theme.js';
+import { resolveTheme, safeColor, safePalette, type ResolvedThemeTokens, type VisualizationTheme } from './theme.js';
 
 export interface ViewContext {
-  theme?: ThemeName;
+  theme?: VisualizationTheme;
   streaming?: boolean;
   width?: number;
   height?: number;
@@ -85,11 +85,11 @@ function styleOf(config: Record<string, unknown>): Record<string, unknown> {
   return config.style && typeof config.style === 'object' ? (config.style as Record<string, unknown>) : {};
 }
 
-function paletteOf(config: Record<string, unknown>, theme: ThemeTokens): string[] {
+function paletteOf(config: Record<string, unknown>, theme: ResolvedThemeTokens): string[] {
   return safePalette(styleOf(config).palette, theme.palette);
 }
 
-function markupFor(config: Record<string, unknown>, theme: ThemeTokens): string | null {
+function markupFor(config: Record<string, unknown>, theme: ResolvedThemeTokens): string | null {
   switch (config.type) {
     case 'liquid':
       return renderLiquid(config, theme);
@@ -110,7 +110,7 @@ function markupFor(config: Record<string, unknown>, theme: ThemeTokens): string 
   }
 }
 
-function optionFor(config: Record<string, unknown>, theme: ThemeTokens, context: ViewContext): Record<string, unknown> | null {
+function optionFor(config: Record<string, unknown>, theme: ResolvedThemeTokens, context: ViewContext): Record<string, unknown> | null {
   const colors = paletteOf(config, theme);
   switch (config.type) {
     case 'line':
@@ -156,7 +156,7 @@ function optionFor(config: Record<string, unknown>, theme: ThemeTokens, context:
   }
 }
 
-function base(config: Record<string, unknown>, theme: ThemeTokens, colors: string[], legend: boolean): Record<string, unknown> {
+function base(config: Record<string, unknown>, theme: ResolvedThemeTokens, colors: string[], legend: boolean): Record<string, unknown> {
   const title = text(config.title);
   return {
     color: colors,
@@ -177,7 +177,7 @@ function base(config: Record<string, unknown>, theme: ThemeTokens, colors: strin
   };
 }
 
-function axisCommon(theme: ThemeTokens, name?: string): Record<string, unknown> {
+function axisCommon(theme: ResolvedThemeTokens, name?: string): Record<string, unknown> {
   return {
     name,
     nameLocation: 'middle',
@@ -216,7 +216,7 @@ function grouped(rows: Row[], xKey: string, yKey: string, allowGroup = true) {
 
 function cartesian(
   config: Record<string, unknown>,
-  theme: ThemeTokens,
+  theme: ResolvedThemeTokens,
   colors: string[],
   kind: 'line' | 'area' | 'column' | 'bar',
 ): Record<string, unknown> | null {
@@ -270,7 +270,7 @@ function cartesian(
   };
 }
 
-function pie(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+function pie(config: Record<string, unknown>, theme: ResolvedThemeTokens, colors: string[]): Record<string, unknown> | null {
   const rows = rowsOf(config.data).filter((row) => num(row.value) != null);
   if (!rows.length) return null;
   const inner = num(config.innerRadius) ?? 0;
@@ -291,7 +291,7 @@ function pie(config: Record<string, unknown>, theme: ThemeTokens, colors: string
   };
 }
 
-function scatter(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+function scatter(config: Record<string, unknown>, theme: ResolvedThemeTokens, colors: string[]): Record<string, unknown> | null {
   const rows = rowsOf(config.data).filter((row) => num(row.x) != null && num(row.y) != null);
   if (!rows.length) return null;
   const groups = [...new Set(rows.map((row) => text(row.group)).filter(Boolean))];
@@ -310,7 +310,7 @@ function scatter(config: Record<string, unknown>, theme: ThemeTokens, colors: st
   };
 }
 
-function radar(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+function radar(config: Record<string, unknown>, theme: ResolvedThemeTokens, colors: string[]): Record<string, unknown> | null {
   const rows = rowsOf(config.data).filter((row) => row.name != null && num(row.value) != null);
   if (!rows.length) return null;
   const indicators: string[] = [];
@@ -353,7 +353,7 @@ function radar(config: Record<string, unknown>, theme: ThemeTokens, colors: stri
   };
 }
 
-function funnel(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+function funnel(config: Record<string, unknown>, theme: ResolvedThemeTokens, colors: string[]): Record<string, unknown> | null {
   const rows = rowsOf(config.data)
     .filter((row) => num(row.value) != null)
     .map((row) => ({ name: text(row.category || row.name), value: num(row.value) ?? 0 }))
@@ -387,7 +387,7 @@ function funnel(config: Record<string, unknown>, theme: ThemeTokens, colors: str
   };
 }
 
-function waterfall(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+function waterfall(config: Record<string, unknown>, theme: ResolvedThemeTokens, colors: string[]): Record<string, unknown> | null {
   const rows = rowsOf(config.data).filter((row) => row.category != null || row.name != null);
   if (!rows.length) return null;
   const custom = Array.isArray(styleOf(config).palette);
@@ -460,7 +460,7 @@ function waterfall(config: Record<string, unknown>, theme: ThemeTokens, colors: 
   };
 }
 
-function dualAxes(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+function dualAxes(config: Record<string, unknown>, theme: ResolvedThemeTokens, colors: string[]): Record<string, unknown> | null {
   const categories = Array.isArray(config.categories) ? config.categories.map((item) => text(item)) : [];
   const series = rowsOf(config.series).filter((item) => Array.isArray(item.data));
   if (!categories.length || !series.length) return null;
@@ -489,7 +489,7 @@ function dualAxes(config: Record<string, unknown>, theme: ThemeTokens, colors: s
   };
 }
 
-function histogram(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+function histogram(config: Record<string, unknown>, theme: ResolvedThemeTokens, colors: string[]): Record<string, unknown> | null {
   const values = Array.isArray(config.data) ? config.data.map((item) => num(item)).filter((item): item is number => item != null) : [];
   if (!values.length) return null;
   const bins = Math.max(1, Math.round(num(config.binNumber) ?? 8));
@@ -526,7 +526,7 @@ function quartiles(values: number[]): number[] {
   return [sorted[0], at(0.25), at(0.5), at(0.75), sorted[sorted.length - 1]];
 }
 
-function boxplot(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+function boxplot(config: Record<string, unknown>, theme: ResolvedThemeTokens, colors: string[]): Record<string, unknown> | null {
   const rows = rowsOf(config.data).filter((row) => num(row.value) != null);
   if (!rows.length) return null;
   const categories: string[] = [];
@@ -556,7 +556,7 @@ function boxplot(config: Record<string, unknown>, theme: ThemeTokens, colors: st
   };
 }
 
-function sankey(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+function sankey(config: Record<string, unknown>, theme: ResolvedThemeTokens, colors: string[]): Record<string, unknown> | null {
   const rows = rowsOf(config.data).filter((row) => row.source != null && row.target != null && num(row.value) != null);
   if (!rows.length) return null;
   const names: string[] = [];
@@ -595,7 +595,7 @@ function treemapNodes(data: unknown): Row[] {
   }));
 }
 
-function treemap(config: Record<string, unknown>, theme: ThemeTokens, colors: string[]): Record<string, unknown> | null {
+function treemap(config: Record<string, unknown>, theme: ResolvedThemeTokens, colors: string[]): Record<string, unknown> | null {
   const data = treemapNodes(config.data);
   if (!data.length) return null;
   return {
@@ -635,7 +635,7 @@ function graphNodes(data: unknown): { nodes: Row[]; edges: Row[] } {
 
 function graph(
   config: Record<string, unknown>,
-  theme: ThemeTokens,
+  theme: ResolvedThemeTokens,
   colors: string[],
   mode: string,
   context: ViewContext,
@@ -802,7 +802,7 @@ function flowPositions(nodes: Row[], edges: Row[]): Map<string, { x: number; y: 
 
 function mindmapChart(
   config: Record<string, unknown>,
-  theme: ThemeTokens,
+  theme: ResolvedThemeTokens,
   colors: string[],
   context: ViewContext,
 ): Record<string, unknown> | null {
@@ -930,7 +930,7 @@ function toEchartsTree(node: Row): Record<string, unknown> {
 
 function treeChart(
   config: Record<string, unknown>,
-  theme: ThemeTokens,
+  theme: ResolvedThemeTokens,
   colors: string[],
   orient: 'LR' | 'RL' | 'TB',
 ): Record<string, unknown> | null {
