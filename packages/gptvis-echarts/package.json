@@ -1,8 +1,14 @@
 {
   "name": "gptvis-echarts",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "ECharts adapter for GPT-Vis. Same vis syntax, GPTVis class, and chart constructors, rendered with Apache ECharts.",
-  "keywords": ["gpt-vis", "echarts", "vis", "llm", "charts"],
+  "keywords": [
+    "gpt-vis",
+    "echarts",
+    "vis",
+    "llm",
+    "charts"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/wzc520pyfm/GPT-Vis-ECharts.git",
@@ -11,7 +17,11 @@
   "type": "module",
   "license": "MIT",
   "sideEffects": false,
-  "files": ["dist", "src", "skills"],
+  "files": [
+    "dist",
+    "src",
+    "skills"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -43,8 +53,12 @@
     "react-dom": ">=18"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "react-dom": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/react": "^19.2.2",
