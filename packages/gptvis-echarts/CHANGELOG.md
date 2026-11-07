@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- `echarts` 改为 peerDependency（`^5.6.0 || ^6.0.0`），应用需自行安装；开发依赖仍保留 5.6 用于测试。
+- 新增 `gptvis-echarts/syntax` 子路径，供服务端解析 vis 语法且不引入 echarts。
+- 主题支持 GPT-Vis 1.3 兼容的 ThemeSpec 对象；内置 `default` / `light` / `dark` / `academy` 仍可用。
+- 补充 HTML 图种 XSS 回归测试，以及 ECharts 渲染冒烟测试。
+
 ## 0.2.1
 
 - 说明改为产品文档：流式输出直接写清行为，渲染约定不再复述方案讨论。
