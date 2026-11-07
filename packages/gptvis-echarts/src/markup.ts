@@ -1,5 +1,5 @@
 import { chartLabel } from './catalog.js';
-import type { ThemeTokens } from './theme.js';
+import type { ResolvedThemeTokens } from './theme.js';
 import { escapeHtml, renderSummary } from './text.js';
 
 export interface Row {
@@ -62,7 +62,7 @@ function percentNumber(value: unknown): number | null {
 
 let liquidSeq = 0;
 
-export function renderLiquid(config: Record<string, unknown>, theme: ThemeTokens): string | null {
+export function renderLiquid(config: Record<string, unknown>, theme: ResolvedThemeTokens): string | null {
   const ratio = percentNumber(config.percent);
   if (ratio == null) return null;
   const title = text(config.title);
@@ -103,7 +103,7 @@ function liquidWave(level: number): string {
   return `${path} L 220 210 L -10 210 Z`;
 }
 
-export function renderTable(config: Record<string, unknown>, theme: ThemeTokens): string | null {
+export function renderTable(config: Record<string, unknown>, theme: ResolvedThemeTokens): string | null {
   const rows = rowsOf(config.data);
   if (!rows.length) return null;
   const columns: string[] = [];
@@ -134,7 +134,7 @@ export function renderTable(config: Record<string, unknown>, theme: ThemeTokens)
     </div>`;
 }
 
-export function renderSummaryView(config: Record<string, unknown>, theme: ThemeTokens): string | null {
+export function renderSummaryView(config: Record<string, unknown>, theme: ResolvedThemeTokens): string | null {
   const body = text(config.content || config.text || '');
   const title = text(config.title);
   if (!body.trim() && !title) return null;
@@ -145,7 +145,7 @@ export function renderSummaryView(config: Record<string, unknown>, theme: ThemeT
     </article>`;
 }
 
-export function renderWordCloud(config: Record<string, unknown>, theme: ThemeTokens): string | null {
+export function renderWordCloud(config: Record<string, unknown>, theme: ResolvedThemeTokens): string | null {
   const words = rowsOf(config.data)
     .map((row) => ({ text: text(row.text || row.name || row.word), value: num(row.value) ?? 0 }))
     .filter((word) => word.text)
@@ -199,7 +199,7 @@ function overlaps(a: { x: number; y: number; width: number; height: number }, b:
   return a.x < b.x + b.width + pad && a.x + a.width + pad > b.x && a.y < b.y + b.height + pad && a.y + a.height + pad > b.y;
 }
 
-export function renderVenn(config: Record<string, unknown>, theme: ThemeTokens): string | null {
+export function renderVenn(config: Record<string, unknown>, theme: ResolvedThemeTokens): string | null {
   const items = rowsOf(config.data)
     .map((row) => ({ sets: setsOf(row.sets ?? row.name), value: num(row.value) ?? 0, label: text(row.label) }))
     .filter((item) => item.sets.length);
@@ -253,7 +253,7 @@ export function renderVenn(config: Record<string, unknown>, theme: ThemeTokens):
     </div>`;
 }
 
-export function renderViolin(config: Record<string, unknown>, theme: ThemeTokens): string | null {
+export function renderViolin(config: Record<string, unknown>, theme: ResolvedThemeTokens): string | null {
   const grouped = new Map<string, number[]>();
   for (const row of rowsOf(config.data)) {
     const category = text(row.category || row.name || '未分组');
@@ -312,7 +312,7 @@ export function renderViolin(config: Record<string, unknown>, theme: ThemeTokens
     </div>`;
 }
 
-export function renderFishbone(config: Record<string, unknown>, theme: ThemeTokens): string | null {
+export function renderFishbone(config: Record<string, unknown>, theme: ResolvedThemeTokens): string | null {
   const root = treeOf(config.data);
   if (!root) return null;
   const causes = rowsOf(root.children).slice(0, 8);

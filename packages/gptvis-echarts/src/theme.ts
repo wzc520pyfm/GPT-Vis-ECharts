@@ -1,6 +1,128 @@
 export type ThemeName = 'default' | 'light' | 'dark' | 'academy';
 
+export type ChartType =
+  | 'area'
+  | 'bar'
+  | 'boxplot'
+  | 'column'
+  | 'dual-axes'
+  | 'fishbone-diagram'
+  | 'flow-diagram'
+  | 'funnel'
+  | 'histogram'
+  | 'indented-tree'
+  | 'line'
+  | 'liquid'
+  | 'mindmap'
+  | 'network-graph'
+  | 'organization-chart'
+  | 'pie'
+  | 'radar'
+  | 'sankey'
+  | 'scatter'
+  | 'summary'
+  | 'table'
+  | 'treemap'
+  | 'venn'
+  | 'violin'
+  | 'waterfall'
+  | 'word-cloud';
+
+/** Reusable visual theme. Local chart config takes precedence over this spec. */
+export interface ThemeSpec {
+  /** Stable identifier; does not register a theme name. */
+  id: string;
+  /** Human-readable theme name. */
+  label: string;
+  description?: string;
+  baseTheme?: string;
+  tokens?: ThemeTokens;
+  /** Shared visual overrides, applied after token expansion. */
+  style?: ThemeStyle;
+  /** Additional visual overrides for individual chart types. */
+  charts?: Partial<Record<ChartType, { style?: ThemeStyle }>>;
+}
+
+/**
+ * Visual style namespaces accepted for ThemeSpec compatibility. The ECharts
+ * adapter consumes backgroundColor and palette; other fields are reserved.
+ */
+export interface ThemeStyle {
+  backgroundColor?: string;
+  palette?: string[];
+  title?: Record<string, unknown>;
+  axis?: Record<string, unknown>;
+  legend?: Record<string, unknown>;
+  label?: Record<string, unknown>;
+  mark?: {
+    line?: Record<string, unknown>;
+    area?: Record<string, unknown>;
+    point?: Record<string, unknown>;
+    interval?: Record<string, unknown>;
+    box?: Record<string, unknown>;
+    connector?: Record<string, unknown>;
+    path?: Record<string, unknown>;
+    density?: Record<string, unknown>;
+    link?: Record<string, unknown>;
+    liquid?: Record<string, unknown>;
+    treemap?: Record<string, unknown>;
+    sankey?: Record<string, unknown>;
+    wordCloud?: Record<string, unknown>;
+  };
+  node?: Record<string, unknown>;
+  edge?: Record<string, unknown>;
+  table?: {
+    header?: Record<string, unknown>;
+    cell?: Record<string, unknown>;
+    border?: Record<string, unknown>;
+  };
+  summary?: Record<string, unknown>;
+  /** Fishbone drawing texture. */
+  texture?: 'rough' | 'default';
+  /** @deprecated Line, Area and Radar: use `mark.line.lineWidth`. */
+  lineWidth?: number;
+}
+
+/** High-frequency seed tokens from GPT-Vis ThemeSpec. */
 export interface ThemeTokens {
+  /** Primary series or emphasis color. */
+  colorDefault?: string;
+  /** Canvas background. */
+  colorBackground?: string;
+  /** Table/Liquid surfaces and existing tooltip backgrounds. */
+  colorSurface?: string;
+  /** Primary text color. */
+  colorText?: string;
+  /** Secondary text used by subtitles, axes and supporting copy. */
+  colorTextSecondary?: string;
+  /** Text displayed on a contrasting filled surface. */
+  colorTextInverse?: string;
+  /** Base structural stroke color for axes, grids, borders, nodes and edges. */
+  colorStroke?: string;
+  /** Positive semantic color. */
+  colorPositive?: string;
+  /** Negative semantic color. */
+  colorNegative?: string;
+  /** Neutral semantic color for unchanged or unknown status. */
+  colorNeutral?: string;
+  /** Primary categorical palette. */
+  category10?: string[];
+  /** Extended categorical palette, used when category10 is absent. */
+  category20?: string[];
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: number | 'normal' | 'bold';
+  lineHeight?: number;
+  spacingSmall?: number;
+  spacingMedium?: number;
+  lineWidth?: number;
+  radius?: number;
+}
+
+/** A built-in theme name or an inline GPT-Vis-compatible theme spec. */
+export type VisualizationTheme = ThemeName | ThemeSpec;
+
+export interface ResolvedThemeTokens {
   name: Exclude<ThemeName, 'light'>;
   background: string;
   text: string;
@@ -18,8 +140,27 @@ const DEFAULT_PALETTE = ['#0f6e6b', '#d4652f', '#2f5d9f', '#c4a15a', '#6d4c7d', 
 const DARK_PALETTE = ['#7dcec6', '#f0a36a', '#8eb4e8', '#e4c98a', '#c9a4d6', '#8dceb0', '#f0a0a0', '#b7c7d1'];
 const ACADEMY_PALETTE = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#9c755f'];
 
-export function resolveTheme(theme: unknown, fallback: ThemeName = 'default'): ThemeTokens {
-  const name = theme === 'light' || theme === 'default' || theme === 'dark' || theme === 'academy' ? theme : fallback;
+export function resolveTheme(theme: unknown, fallback: VisualizationTheme = 'default'): ResolvedThemeTokens {
+  const selected = isThemeName(theme) || isThemeSpec(theme) ? theme : fallback;
+  if (isThemeSpec(selected)) {
+    return applyThemeSpec(namedTheme(selected.baseTheme), selected);
+  }
+  return namedTheme(selected);
+}
+
+function isThemeName(value: unknown): value is ThemeName {
+  return value === 'default' || value === 'light' || value === 'dark' || value === 'academy';
+}
+
+function isThemeSpec(value: unknown): value is ThemeSpec {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const spec = value as Partial<ThemeSpec>;
+  return typeof spec.id === 'string' || typeof spec.label === 'string';
+}
+
+function namedTheme(theme: unknown): ResolvedThemeTokens {
+  const name: Exclude<ThemeName, 'light'> =
+    theme === 'dark' || theme === 'academy' ? theme : 'default';
   if (name === 'dark') {
     return {
       name: 'dark',
@@ -62,6 +203,26 @@ export function resolveTheme(theme: unknown, fallback: ThemeName = 'default'): T
     positive: '#2f7d4a',
     negative: '#b44848',
     total: '#2f5d9f',
+  };
+}
+
+function applyThemeSpec(base: ResolvedThemeTokens, spec: ThemeSpec): ResolvedThemeTokens {
+  const tokens = spec.tokens ?? {};
+  const style = spec.style ?? {};
+  const background = safeColor(tokens.colorBackground, base.background);
+  const palette = safePalette(tokens.category10 ?? tokens.category20, base.palette);
+  return {
+    ...base,
+    background: safeColor(style.backgroundColor, background) ?? base.background,
+    text: safeColor(tokens.colorText, base.text) ?? base.text,
+    muted: safeColor(tokens.colorTextSecondary ?? tokens.colorNeutral, base.muted) ?? base.muted,
+    grid: safeColor(tokens.colorStroke, base.grid) ?? base.grid,
+    tooltipBg: safeColor(tokens.colorSurface, base.tooltipBg) ?? base.tooltipBg,
+    tooltipText: safeColor(tokens.colorTextInverse, base.tooltipText) ?? base.tooltipText,
+    palette: safePalette(style.palette, palette),
+    positive: safeColor(tokens.colorPositive, base.positive) ?? base.positive,
+    negative: safeColor(tokens.colorNegative, base.negative) ?? base.negative,
+    total: safeColor(tokens.colorDefault, base.total) ?? base.total,
   };
 }
 

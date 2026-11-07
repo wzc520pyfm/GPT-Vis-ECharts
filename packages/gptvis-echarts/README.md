@@ -2,7 +2,19 @@
 
 GPT-Vis 的 ECharts 适配层。公开入口和 `@antv/gpt-vis` 对齐：`GPTVis`、`parse`、`isVisSyntax`，以及 26 个同名构造函数。模型继续写 `vis` 语法，图由 Apache ECharts 绘制，不安装 AntV。
 
-流式输出时，没写完的最后一行先不画，已经完整的部分照常出图。主题有默认、学院和深色。26 种图里，统计图走 ECharts，表格、摘要、水波、词云、韦恩、小提琴和鱼骨走同一套运行时里的 HTML。
+流式输出时，没写完的最后一行先不画，已经完整的部分照常出图。主题有默认、浅色、学院和深色，也可以传 GPT-Vis 1.3 风格的 `ThemeSpec`。26 种图里，统计图走 ECharts，表格、摘要、水波、词云、韦恩、小提琴和鱼骨走同一套运行时里的 HTML。
+
+## 安装
+
+`echarts` 是 peer dependency，应用需要和本包一起安装：
+
+```bash
+npm install gptvis-echarts echarts
+```
+
+支持的 ECharts 版本是 `^5.6.0 || ^6.0.0`。React 入口还需要 React 18+；主包解析和服务端 `syntax` 入口不需要 React。
+
+ECharts 6 调整了默认主题和部分组件默认值。适配层会显式设置标题、坐标轴、提示框和系列颜色，但如果你还通过 `echarts.init` 注册了自定义 ECharts 主题，升级 6.x 后建议做一次视觉回归。仓库里的安装冒烟测试固定跑 ECharts 5.6。
 
 ## 运行演示
 
@@ -20,7 +32,7 @@ npm test
 npm run build
 ```
 
-`npm run build` 把库打到 `packages/gptvis-echarts/dist/`，把演示打到 `playground/dist/`。演示包自己依赖 React，并从 `gptvis-echarts` 与 `gptvis-echarts/react` 引用这个库。
+`npm run build` 把库打到 `packages/gptvis-echarts/dist/`，把演示打到 `playground/dist/`。演示包自己依赖 React 和 ECharts，并从 `gptvis-echarts` 与 `gptvis-echarts/react` 引用这个库。
 
 ## 在页面里用
 
@@ -66,6 +78,44 @@ const chart = bindGPTVis(el.value, { theme: 'default' });
 chart.update(syntax);
 chart.destroy();
 ```
+
+服务端、Worker 或只做校验的流程从 `gptvis-echarts/syntax` 导入，不会加载 ECharts、React 或浏览器运行时：
+
+```ts
+import { isVisSyntax, parse, readConfig } from 'gptvis-echarts/syntax';
+
+if (isVisSyntax(buffer)) {
+  const config = parse(buffer);
+  // 也可以把 JSON 字符串或配置对象交给 readConfig。
+}
+```
+
+主题除了内置名称，还可以传 GPT-Vis 1.3 兼容的 `ThemeSpec`。它不会依赖 `@antv/gpt-vis`：
+
+```ts
+import { GPTVis, type ThemeSpec } from 'gptvis-echarts';
+
+const theme: ThemeSpec = {
+  id: 'brand',
+  label: '品牌主题',
+  baseTheme: 'light',
+  tokens: {
+    colorBackground: '#ffffff',
+    colorText: '#1c1916',
+    colorTextSecondary: '#6e675f',
+    colorStroke: '#e6e0d6',
+    category10: ['#0f6e6b', '#d4652f', '#2f5d9f'],
+    colorPositive: '#2f7d4a',
+    colorNegative: '#b44848',
+    colorSurface: '#1c1916',
+    colorTextInverse: '#fbf9f6',
+  },
+};
+
+const vis = new GPTVis({ container: '#chart', theme });
+```
+
+`ThemeSpec.tokens` 会映射到现有 `ThemeTokens`：`colorBackground → background`、`colorText → text`、`colorTextSecondary` 或 `colorNeutral → muted`、`colorStroke → grid`、`category10`（缺省时用 `category20`）`→ palette`、`colorSurface → tooltipBg`、`colorTextInverse → tooltipText`、`colorPositive/colorNegative`、`colorDefault → total`。`style.backgroundColor` 和 `style.palette` 会在 token 展开后覆盖。
 
 `render` 也接受已经解析好的对象，或一段 JSON。不以 `vis ` 开头的普通正文会按摘要排版，摘要里的 `[文本](metric_value)` 这类语义标记会画成标注。
 

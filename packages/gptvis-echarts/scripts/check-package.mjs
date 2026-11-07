@@ -5,22 +5,30 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const entry = join(root, 'dist/index.js');
 const reactEntry = join(root, 'dist/react.js');
+const syntaxEntry = join(root, 'dist/syntax.js');
 
 const seen = new Set();
-function walk(file) {
-  if (seen.has(file)) return;
-  seen.add(file);
+function walk(file, files, forbidEcharts = false) {
+  if (files.has(file)) return;
+  files.add(file);
   const text = readFileSync(file, 'utf8');
   for (const match of text.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
     const spec = match[1];
+    if (spec === 'echarts' || spec.startsWith('echarts/')) {
+      if (forbidEcharts) throw new Error(`${file} imports ${spec}. The syntax entry must not load ECharts.`);
+      continue;
+    }
     if (spec === 'react' || spec.startsWith('react/')) {
       throw new Error(`${file} imports ${spec}. The main entry must load without React.`);
     }
-    if (spec.startsWith('.')) walk(join(dirname(file), spec));
+    if (spec.startsWith('.')) walk(join(dirname(file), spec), files, forbidEcharts);
   }
 }
 
-walk(entry);
+walk(entry, seen);
+const syntaxSeen = new Set();
+walk(syntaxEntry, syntaxSeen, true);
+
 const reactText = readFileSync(reactEntry, 'utf8');
 if (!reactText.includes("from 'react'") && !reactText.includes('from "react"')) {
   throw new Error('dist/react.js does not import react');
@@ -75,4 +83,11 @@ if (parsed.type !== 'pie' || parsed.data?.[0]?.value !== 1) {
 }
 if ('GPTVisChart' in api) throw new Error('GPTVisChart leaked into the main entry');
 
-console.log(`package entry ok (${seen.size} modules, no react)`);
+const syntax = await import(pathToFileURL(syntaxEntry).href);
+const syntaxMissing = ['parse', 'isVisSyntax', 'readConfig'].filter((name) => typeof syntax[name] !== 'function');
+if (syntaxMissing.length) throw new Error(`missing syntax exports: ${syntaxMissing.join(', ')}`);
+if ('GPTVis' in syntax || 'buildView' in syntax) {
+  throw new Error('the syntax entry must not expose the browser runtime');
+}
+
+console.log(`package entry ok (${seen.size} modules, no react; syntax ${syntaxSeen.size} modules, no echarts)`);
