@@ -1,5 +1,9 @@
 # GPTVis ECharts
 
+[![npm version](https://img.shields.io/npm/v/gptvis-echarts.svg)](https://www.npmjs.com/package/gptvis-echarts)
+[![npm](https://img.shields.io/npm/v/gptvis-echarts/latest.svg?label=latest)](https://www.npmjs.com/package/gptvis-echarts)
+[![npm downloads](https://img.shields.io/npm/dm/gptvis-echarts.svg)](https://www.npmjs.com/package/gptvis-echarts)
+
 npm workspaces。库和演示分开安装依赖。
 
 - `packages/gptvis-echarts`：发布用的 ECharts 适配层。用法见 [packages/gptvis-echarts/README.md](packages/gptvis-echarts/README.md)。
