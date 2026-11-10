@@ -17,6 +17,7 @@ import {
 } from './markup.js';
 import { readConfig } from './parser.js';
 import { resolveTheme, safeColor, safePalette, type ResolvedThemeTokens, type VisualizationTheme } from './theme.js';
+import { DEFAULT_TITLE_FONT_SIZE, topForTitle } from './titleLayout.js';
 
 export interface ViewContext {
   theme?: VisualizationTheme;
@@ -166,9 +167,9 @@ function base(config: Record<string, unknown>, theme: ResolvedThemeTokens, color
     animationDurationUpdate: 0,
     textStyle: { color: theme.text, fontFamily: 'IBM Plex Sans, Source Sans 3, sans-serif' },
     title: title
-      ? { text: title, left: 8, top: 6, textStyle: { color: theme.text, fontSize: 16, fontWeight: 600 } }
+      ? { text: title, left: 8, top: 6, textStyle: { color: theme.text, fontSize: DEFAULT_TITLE_FONT_SIZE, fontWeight: 600 } }
       : undefined,
-    legend: legend ? { top: title ? 34 : 8, type: 'scroll', textStyle: { color: theme.muted } } : undefined,
+    legend: legend ? { top: topForTitle(Boolean(title), 34, 8), type: 'scroll', textStyle: { color: theme.muted } } : undefined,
     tooltip: {
       backgroundColor: theme.tooltipBg,
       borderWidth: 0,
@@ -259,7 +260,7 @@ function cartesian(
     grid: {
       left: 18,
       right: 22,
-      top: text(config.title) ? 78 : 52,
+      top: topForTitle(Boolean(text(config.title)), 78, 52),
       bottom: long ? 64 : text(config.axisXTitle) ? 42 : 28,
       containLabel: true,
     },
@@ -298,7 +299,7 @@ function scatter(config: Record<string, unknown>, theme: ResolvedThemeTokens, co
   const buckets = groups.length ? groups : [''];
   return {
     ...base(config, theme, colors, groups.length > 0),
-    grid: { left: 18, right: 24, top: text(config.title) ? 72 : 48, bottom: 28, containLabel: true },
+    grid: { left: 18, right: 24, top: topForTitle(Boolean(text(config.title)), 72, 48), bottom: 28, containLabel: true },
     xAxis: { type: 'value', scale: true, ...axisCommon(theme, text(config.axisXTitle) || undefined) },
     yAxis: { type: 'value', scale: true, ...axisCommon(theme, text(config.axisYTitle) || undefined) },
     series: buckets.map((group) => ({
@@ -366,7 +367,7 @@ function funnel(config: Record<string, unknown>, theme: ResolvedThemeTokens, col
       {
         type: 'funnel',
         left: '12%',
-        top: text(config.title) ? 64 : 36,
+        top: topForTitle(Boolean(text(config.title)), 64, 36),
         bottom: 16,
         width: '76%',
         sort: 'none',
@@ -439,7 +440,7 @@ function waterfall(config: Record<string, unknown>, theme: ResolvedThemeTokens, 
         return `${categories[index]}<br/>${formatNumber(signed[index] ?? 0)}`;
       },
     },
-    grid: { left: 18, right: 18, top: text(config.title) ? 64 : 36, bottom: 24, containLabel: true },
+    grid: { left: 18, right: 18, top: topForTitle(Boolean(text(config.title)), 64, 36), bottom: 24, containLabel: true },
     xAxis: { type: 'category', data: categories, ...axisCommon(theme, text(config.axisXTitle) || undefined) },
     yAxis: { type: 'value', ...axisCommon(theme, text(config.axisYTitle) || undefined) },
     series: [
@@ -468,7 +469,7 @@ function dualAxes(config: Record<string, unknown>, theme: ResolvedThemeTokens, c
   return {
     ...base(config, theme, colors, true),
     tooltip: { trigger: 'axis', backgroundColor: theme.tooltipBg, borderWidth: 0, textStyle: { color: theme.tooltipText } },
-    grid: { left: 18, right: 18, top: text(config.title) ? 78 : 52, bottom: 24, containLabel: true },
+    grid: { left: 18, right: 18, top: topForTitle(Boolean(text(config.title)), 78, 52), bottom: 24, containLabel: true },
     xAxis: { type: 'category', data: categories, ...axisCommon(theme, text(config.axisXTitle) || undefined) },
     yAxis: [0, 1].map((index) => ({
       type: 'value',
@@ -507,7 +508,7 @@ function histogram(config: Record<string, unknown>, theme: ResolvedThemeTokens, 
   });
   return {
     ...base(config, theme, colors, false),
-    grid: { left: 18, right: 16, top: text(config.title) ? 64 : 32, bottom: 24, containLabel: true },
+    grid: { left: 18, right: 16, top: topForTitle(Boolean(text(config.title)), 64, 32), bottom: 24, containLabel: true },
     xAxis: { type: 'category', data: labels, ...axisCommon(theme, text(config.axisXTitle) || undefined) },
     yAxis: { type: 'value', ...axisCommon(theme, text(config.axisYTitle) || '频数') },
     series: [{ type: 'bar', data: counts, barMaxWidth: 48, itemStyle: { color: colors[0] } }],
@@ -539,7 +540,7 @@ function boxplot(config: Record<string, unknown>, theme: ResolvedThemeTokens, co
   const startAtZero = styleOf(config).startAtZero === true;
   return {
     ...base(config, theme, colors, groups.length > 0),
-    grid: { left: 18, right: 16, top: text(config.title) ? 72 : 40, bottom: 24, containLabel: true },
+    grid: { left: 18, right: 16, top: topForTitle(Boolean(text(config.title)), 72, 40), bottom: 24, containLabel: true },
     xAxis: { type: 'category', data: categories, ...axisCommon(theme, text(config.axisXTitle) || undefined) },
     yAxis: { type: 'value', scale: !startAtZero, min: startAtZero ? 0 : undefined, ...axisCommon(theme, text(config.axisYTitle) || undefined) },
     series: names.map((group) => ({
@@ -570,7 +571,7 @@ function sankey(config: Record<string, unknown>, theme: ResolvedThemeTokens, col
     series: [
       {
         type: 'sankey',
-        top: text(config.title) ? 48 : 16,
+        top: topForTitle(Boolean(text(config.title)), 48, 16),
         bottom: 8,
         left: '2%',
         right: '18%',
@@ -603,7 +604,7 @@ function treemap(config: Record<string, unknown>, theme: ResolvedThemeTokens, co
     series: [
       {
         type: 'treemap',
-        top: text(config.title) ? 48 : 16,
+        top: topForTitle(Boolean(text(config.title)), 48, 16),
         bottom: 8,
         left: 8,
         right: 8,
@@ -943,7 +944,7 @@ function treeChart(
       {
         type: 'tree',
         data: [toEchartsTree(root)],
-        top: text(config.title) ? 56 : 24,
+        top: topForTitle(Boolean(text(config.title)), 56, 24),
         left: direction === 'TB' ? 40 : 90,
         bottom: direction === 'TB' ? 48 : 24,
         right: direction === 'TB' ? 40 : 120,

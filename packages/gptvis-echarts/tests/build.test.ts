@@ -200,6 +200,71 @@ data
     expect(view.message).toContain('三个集合');
   });
 
+  it('uses a 20px default title and reserves extra top space', () => {
+    const titled = `vis line
+title 销售
+data
+  - time 1月
+    value 10
+    group 华东
+  - time 1月
+    value 8
+    group 华南
+`;
+    const untitled = `vis line
+data
+  - time 1月
+    value 10
+    group 华东
+  - time 1月
+    value 8
+    group 华南
+`;
+    const withTitle = buildView(titled);
+    const withoutTitle = buildView(untitled);
+    expect(withTitle.kind).toBe('echarts');
+    expect(withoutTitle.kind).toBe('echarts');
+    if (withTitle.kind !== 'echarts' || withoutTitle.kind !== 'echarts') return;
+
+    const title = withTitle.option.title as { textStyle: { fontSize: number } };
+    const titledLegend = withTitle.option.legend as { top: number };
+    const titledGrid = withTitle.option.grid as { top: number };
+    const openLegend = withoutTitle.option.legend as { top: number };
+    const openGrid = withoutTitle.option.grid as { top: number };
+    expect(title.textStyle.fontSize).toBe(20);
+    expect(titledLegend.top).toBe(38);
+    expect(titledGrid.top).toBe(82);
+    expect(openLegend.top).toBe(8);
+    expect(openGrid.top).toBe(52);
+
+    const sankey = buildView(`vis sankey
+title 流向
+data
+  - source 甲
+    target 乙
+    value 4
+`);
+    expect(sankey.kind).toBe('echarts');
+    if (sankey.kind === 'echarts') {
+      const series = sankey.option.series as { top: number }[];
+      expect(series[0].top).toBe(52);
+    }
+
+    const violin = buildView(`vis violin
+title 分布
+data
+  - category 甲
+    value 3
+  - category 甲
+    value 5
+`);
+    expect(violin.kind).toBe('html');
+    if (violin.kind === 'html') {
+      expect(violin.html).toContain('<h3>分布</h3>');
+      expect(violin.html).toContain('y1="60"');
+    }
+  });
+
   it('does not split series when group is turned off', () => {
     const view = buildView(`vis column
 group false
