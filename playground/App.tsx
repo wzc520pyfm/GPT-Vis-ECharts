@@ -10,6 +10,9 @@ const THEMES: { id: ThemeName; label: string }[] = [
   { id: 'dark', label: '深色' },
 ];
 
+const REPO_URL = 'https://github.com/wzc520pyfm/GPT-Vis-ECharts';
+const GPT_VIS_URL = 'https://github.com/antvis/GPT-Vis';
+
 export function App() {
   const [source, setSource] = useState(EXAMPLES[0].source);
   const [activeId, setActiveId] = useState(EXAMPLES[0].id);
@@ -69,7 +72,23 @@ export function App() {
           <p className="eyebrow">Apache ECharts</p>
           <h1>GPTVis ECharts</h1>
         </div>
-        <p className="lede">模型继续写 vis 语法。解析、容错和流式更新在这里完成，图交给 ECharts，不经过 AntV。</p>
+        <div>
+          <p className="lede">
+            模型继续写{' '}
+            <a href={GPT_VIS_URL} target="_blank" rel="noreferrer">
+              GPT-Vis
+            </a>{' '}
+            的 vis 语法。解析、容错和流式更新在这里完成，图交给 ECharts，渲染不经过 AntV。
+          </p>
+          <p className="source-links">
+            <a href={REPO_URL} target="_blank" rel="noreferrer">
+              GitHub 仓库
+            </a>
+            <a href={GPT_VIS_URL} target="_blank" rel="noreferrer">
+              GPT-Vis
+            </a>
+          </p>
+        </div>
       </header>
 
       <div className="layout">
