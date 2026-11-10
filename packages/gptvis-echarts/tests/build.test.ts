@@ -200,7 +200,7 @@ data
     expect(view.message).toContain('三个集合');
   });
 
-  it('uses a 20px default title and reserves extra top space', () => {
+  it('uses a 28px default title and reserves extra top space', () => {
     const titled = `vis line
 title 销售
 data
@@ -231,9 +231,9 @@ data
     const titledGrid = withTitle.option.grid as { top: number };
     const openLegend = withoutTitle.option.legend as { top: number };
     const openGrid = withoutTitle.option.grid as { top: number };
-    expect(title.textStyle.fontSize).toBe(20);
-    expect(titledLegend.top).toBe(38);
-    expect(titledGrid.top).toBe(82);
+    expect(title.textStyle.fontSize).toBe(28);
+    expect(titledLegend.top).toBe(46);
+    expect(titledGrid.top).toBe(90);
     expect(openLegend.top).toBe(8);
     expect(openGrid.top).toBe(52);
 
@@ -247,7 +247,7 @@ data
     expect(sankey.kind).toBe('echarts');
     if (sankey.kind === 'echarts') {
       const series = sankey.option.series as { top: number }[];
-      expect(series[0].top).toBe(52);
+      expect(series[0].top).toBe(60);
     }
 
     const violin = buildView(`vis violin
@@ -261,7 +261,7 @@ data
     expect(violin.kind).toBe('html');
     if (violin.kind === 'html') {
       expect(violin.html).toContain('<h3>分布</h3>');
-      expect(violin.html).toContain('y1="60"');
+      expect(violin.html).toContain('y1="68"');
     }
   });
 
