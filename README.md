@@ -4,6 +4,8 @@
 [![npm](https://img.shields.io/npm/v/gptvis-echarts/latest.svg?label=latest)](https://www.npmjs.com/package/gptvis-echarts)
 [![npm downloads](https://img.shields.io/npm/dm/gptvis-echarts.svg)](https://www.npmjs.com/package/gptvis-echarts)
 
+本仓库的 `vis` 语法来自 [GPT-Vis](https://github.com/antvis/GPT-Vis)。模型继续写同一套声明式语法，图由 Apache ECharts 绘制，渲染不经过 AntV。
+
 npm workspaces。库和演示分开安装依赖。
 
 - `packages/gptvis-echarts`：发布用的 ECharts 适配层。用法见 [packages/gptvis-echarts/README.md](packages/gptvis-echarts/README.md)。

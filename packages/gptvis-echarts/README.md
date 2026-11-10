@@ -4,7 +4,7 @@
 [![npm](https://img.shields.io/npm/v/gptvis-echarts/latest.svg?label=latest)](https://www.npmjs.com/package/gptvis-echarts)
 [![npm downloads](https://img.shields.io/npm/dm/gptvis-echarts.svg)](https://www.npmjs.com/package/gptvis-echarts)
 
-GPT-Vis 的 ECharts 适配层。公开入口和 `@antv/gpt-vis` 对齐：`GPTVis`、`parse`、`isVisSyntax`，以及 26 个同名构造函数。模型继续写 `vis` 语法，图由 Apache ECharts 绘制，不安装 AntV。
+[GPT-Vis](https://github.com/antvis/GPT-Vis) 的 ECharts 适配层。公开入口和 `@antv/gpt-vis` 对齐：`GPTVis`、`parse`、`isVisSyntax`，以及 26 个同名构造函数。模型继续写 `vis` 语法，图由 Apache ECharts 绘制，不安装 AntV。
 
 流式输出时，没写完的最后一行先不画，已经完整的部分照常出图。主题有默认、浅色、学院和深色，也可以传 GPT-Vis 1.3 风格的 `ThemeSpec`。26 种图里，统计图走 ECharts，表格、摘要、水波、词云、韦恩、小提琴和鱼骨走同一套运行时里的 HTML。
 
@@ -163,4 +163,4 @@ vis.getZoom();
 
 ## 许可
 
-MIT，见 `LICENSE`。`vis` 文法的设计来自 AntV GPT-Vis，本仓库的解析器和渲染器是独立实现。
+MIT，见 `LICENSE`。`vis` 文法的设计来自 [AntV GPT-Vis](https://github.com/antvis/GPT-Vis)，本仓库的解析器和渲染器是独立实现。
