@@ -3,6 +3,7 @@ import { buildView, type ViewContext } from './build.js';
 import { readConfig } from './parser.js';
 import type { VisualizationTheme } from './theme.js';
 import { copyText, downloadChart, mountVisShell, type VisShell } from './wrapper.js';
+import { DEFAULT_TITLE_FONT_SIZE, TITLE_RESERVE_EXTRA } from './titleLayout.js';
 
 const ZOOMABLE = new Set(['flow-diagram', 'network-graph', 'mindmap', 'indented-tree', 'organization-chart', 'fishbone-diagram']);
 
@@ -223,7 +224,7 @@ const STYLES = `
 .gve-root { position: relative; overflow: hidden; }
 .gve-fallback { overflow: auto; }
 .gve-fallback h3, .gve-summary h3, .gve-table h3, .gve-cloud h3, .gve-venn h3, .gve-svgchart h3, .gve-liquid h3 {
-  margin: 0; padding: 16px 18px 0; font-size: 16px; font-weight: 600; letter-spacing: 0;
+  margin: 0; padding: 16px 18px ${TITLE_RESERVE_EXTRA}px; font-size: ${DEFAULT_TITLE_FONT_SIZE}px; font-weight: 600; letter-spacing: 0;
 }
 .gve-status { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 6px; padding: 28px; text-align: center; }
 .gve-status p { margin: 0; font-size: 16px; }

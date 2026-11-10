@@ -1,6 +1,7 @@
 import { chartLabel } from './catalog.js';
 import type { ResolvedThemeTokens } from './theme.js';
 import { escapeHtml, renderSummary } from './text.js';
+import { topForTitle } from './titleLayout.js';
 
 export interface Row {
   [key: string]: unknown;
@@ -271,7 +272,7 @@ export function renderViolin(config: Record<string, unknown>, theme: ResolvedThe
   const bins = 16;
   const width = 760;
   const height = 420;
-  const pad = { left: 56, right: 20, top: text(config.title) ? 56 : 28, bottom: 46 };
+  const pad = { left: 56, right: 20, top: topForTitle(Boolean(text(config.title)), 56, 28), bottom: 46 };
   const slot = (width - pad.left - pad.right) / grouped.size;
   const yOf = (value: number) => pad.top + ((max - value) / span) * (height - pad.top - pad.bottom);
   const paths: string[] = [];
