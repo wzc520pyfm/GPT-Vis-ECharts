@@ -1,4 +1,12 @@
 /**
+ * Shared canvas and CSS font stack. Names with spaces or digits must stay
+ * quoted so Canvas ctx.font accepts the shorthand; otherwise the whole
+ * declaration is dropped and the browser falls back to 10px sans-serif,
+ * ignoring title fontSize.
+ */
+export const DEFAULT_FONT_FAMILY = '"IBM Plex Sans", "Source Sans 3", sans-serif';
+
+/**
  * Default font size for ECharts canvas titles and HTML-rendered chart titles
  * (table, liquid, venn, violin, word-cloud, fishbone, summary, and fallback).
  */
