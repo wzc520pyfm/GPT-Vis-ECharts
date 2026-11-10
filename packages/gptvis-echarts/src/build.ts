@@ -17,7 +17,7 @@ import {
 } from './markup.js';
 import { readConfig } from './parser.js';
 import { resolveTheme, safeColor, safePalette, type ResolvedThemeTokens, type VisualizationTheme } from './theme.js';
-import { DEFAULT_TITLE_FONT_SIZE, topForTitle } from './titleLayout.js';
+import { DEFAULT_FONT_FAMILY, DEFAULT_TITLE_FONT_SIZE, topForTitle } from './titleLayout.js';
 
 export interface ViewContext {
   theme?: VisualizationTheme;
@@ -165,7 +165,7 @@ function base(config: Record<string, unknown>, theme: ResolvedThemeTokens, color
     animation: false,
     animationDuration: 0,
     animationDurationUpdate: 0,
-    textStyle: { color: theme.text, fontFamily: 'IBM Plex Sans, Source Sans 3, sans-serif' },
+    textStyle: { color: theme.text, fontFamily: DEFAULT_FONT_FAMILY },
     title: title
       ? { text: title, left: 8, top: 6, textStyle: { color: theme.text, fontSize: DEFAULT_TITLE_FONT_SIZE, fontWeight: 600 } }
       : undefined,

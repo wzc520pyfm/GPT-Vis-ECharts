@@ -3,7 +3,7 @@ import { buildView, type ViewContext } from './build.js';
 import { readConfig } from './parser.js';
 import type { VisualizationTheme } from './theme.js';
 import { copyText, downloadChart, mountVisShell, type VisShell } from './wrapper.js';
-import { DEFAULT_TITLE_FONT_SIZE, TITLE_RESERVE_EXTRA } from './titleLayout.js';
+import { DEFAULT_FONT_FAMILY, DEFAULT_TITLE_FONT_SIZE, TITLE_RESERVE_EXTRA } from './titleLayout.js';
 
 const ZOOMABLE = new Set(['flow-diagram', 'network-graph', 'mindmap', 'indented-tree', 'organization-chart', 'fishbone-diagram']);
 
@@ -215,16 +215,16 @@ function ensureStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement('style');
   style.id = STYLE_ID;
-  style.textContent = STYLES;
+  style.textContent = PACKAGE_STYLES;
   document.head.append(style);
 }
 
-const STYLES = `
+export const PACKAGE_STYLES = `
 .gve-root, .gve-chart, .gve-fallback { width: 100%; height: 100%; min-height: 280px; }
 .gve-root { position: relative; overflow: hidden; }
 .gve-fallback { overflow: auto; }
 .gve-fallback h3, .gve-summary h3, .gve-table h3, .gve-cloud h3, .gve-venn h3, .gve-svgchart h3, .gve-liquid h3 {
-  margin: 0; padding: 16px 18px ${TITLE_RESERVE_EXTRA}px; font-size: ${DEFAULT_TITLE_FONT_SIZE}px; font-weight: 600; letter-spacing: 0;
+  margin: 0; padding: 16px 18px ${TITLE_RESERVE_EXTRA}px; font-size: ${DEFAULT_TITLE_FONT_SIZE}px; font-weight: 600; letter-spacing: 0; font-family: ${DEFAULT_FONT_FAMILY};
 }
 .gve-status { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 6px; padding: 28px; text-align: center; }
 .gve-status p { margin: 0; font-size: 16px; }
@@ -249,16 +249,16 @@ const STYLES = `
 .gve-liquid { display: grid; justify-items: center; align-content: center; gap: 18px; min-height: 100%; padding: 24px; }
 .gve-liquid h3 { padding: 0; }
 .gve-liquid-svg { width: min(240px, 72%); height: auto; }
-.gve-liquid-svg text { fill: var(--ink); font-size: 28px; font-weight: 600; font-family: "IBM Plex Sans", sans-serif; }
+.gve-liquid-svg text { fill: var(--ink); font-size: 28px; font-weight: 600; font-family: ${DEFAULT_FONT_FAMILY}; }
 .gve-shell { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 320px; border: 1px solid rgba(27, 23, 20, 0.12); border-radius: 16px; overflow: hidden; background: #fff; }
 .gve-shell-bar { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 8px 10px; border-bottom: 1px solid rgba(27, 23, 20, 0.08); }
 .gve-shell-tabs, .gve-shell-actions { display: flex; gap: 6px; align-items: center; }
-.gve-shell-tab, .gve-shell-icon { border: 0; background: transparent; color: #5c564e; border-radius: 999px; padding: 6px 10px; font: 600 13px/1 "IBM Plex Sans", sans-serif; cursor: pointer; }
+.gve-shell-tab, .gve-shell-icon { border: 0; background: transparent; color: #5c564e; border-radius: 999px; padding: 6px 10px; font: 600 13px/1 ${DEFAULT_FONT_FAMILY}; cursor: pointer; }
 .gve-shell-tab.on { background: #1b1714; color: #f7f1e8; }
 .gve-shell-chart { flex: 1; min-height: 280px; }
 .gve-shell-code { margin: 0; padding: 16px 18px; overflow: auto; flex: 1; white-space: pre-wrap; font: 13px/1.55 "IBM Plex Mono", ui-monospace, monospace; }
 .gve-venn svg, .gve-svgchart svg { width: 100%; height: auto; display: block; }
-.gve-venn text, .gve-svgchart text { fill: var(--ink); font-size: 13px; font-family: "IBM Plex Sans", sans-serif; }
+.gve-venn text, .gve-svgchart text { fill: var(--ink); font-size: 13px; font-family: ${DEFAULT_FONT_FAMILY}; }
 .gve-venn-name, .gve-bone { font-weight: 600; }
 .gve-head { font-size: 13px; font-weight: 600; }
 `;

@@ -1,5 +1,10 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, extname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildView } from '../src/build';
+import { PACKAGE_STYLES } from '../src/runtime';
+import { DEFAULT_FONT_FAMILY, DEFAULT_TITLE_FONT_SIZE } from '../src/titleLayout';
 
 describe('chart build', () => {
   it('turns a grouped line into one series per group', () => {
@@ -262,6 +267,71 @@ data
     if (violin.kind === 'html') {
       expect(violin.html).toContain('<h3>分布</h3>');
       expect(violin.html).toContain('y1="68"');
+    }
+  });
+
+  it('quotes font family names so canvas title size applies', () => {
+    const view = buildView(`vis line
+title 销售
+data
+  - time 1月
+    value 10
+    group 华东
+  - time 1月
+    value 8
+    group 华南
+`);
+    expect(view.kind).toBe('echarts');
+    if (view.kind !== 'echarts') return;
+
+    const textStyle = view.option.textStyle as { fontFamily: string };
+    const title = view.option.title as { textStyle: { fontSize: number } };
+    expect(title.textStyle.fontSize).toBe(DEFAULT_TITLE_FONT_SIZE);
+    expect(title.textStyle.fontSize).toBe(28);
+    expect(textStyle.fontFamily).toBe(DEFAULT_FONT_FAMILY);
+    expect(textStyle.fontFamily).toContain('"IBM Plex Sans"');
+    expect(textStyle.fontFamily).toContain('"Source Sans 3"');
+    expect(textStyle.fontFamily.split('"Source Sans 3"').join('')).not.toContain('Source Sans 3');
+    expect(textStyle.fontFamily.split('"IBM Plex Sans"').join('')).not.toContain('IBM Plex Sans');
+    expect(textStyle.fontFamily).not.toBe(['IBM Plex Sans', 'Source Sans 3', 'sans-serif'].join(', '));
+  });
+
+  it('does not leave unquoted IBM Plex or Source Sans names in package CSS or options', () => {
+    const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '../src');
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (['.ts', '.tsx', '.css'].includes(extname(path))) files.push(path);
+      }
+    };
+    walk(srcRoot);
+
+    const cssView = buildView(`vis line
+title 销售
+data
+  - time 1月
+    value 10
+`);
+    expect(cssView.kind).toBe('echarts');
+    if (cssView.kind !== 'echarts') return;
+    const option = cssView.option as { textStyle: { fontFamily: string } };
+
+    const payloads = files.map((file) => ({ label: file, text: readFileSync(file, 'utf8') }));
+    payloads.push({ label: 'option.textStyle.fontFamily', text: option.textStyle.fontFamily });
+    payloads.push({ label: 'DEFAULT_FONT_FAMILY', text: DEFAULT_FONT_FAMILY });
+    payloads.push({ label: 'PACKAGE_STYLES', text: PACKAGE_STYLES });
+    expect(PACKAGE_STYLES).toContain(`font-family: ${DEFAULT_FONT_FAMILY}`);
+    expect(PACKAGE_STYLES).toContain(`font: 600 13px/1 ${DEFAULT_FONT_FAMILY}`);
+
+    for (const { label, text } of payloads) {
+      if (text.includes('IBM Plex Sans') || text.includes('Source Sans 3')) {
+        const withoutQuotedSans = text.split('"Source Sans 3"').join('');
+        const withoutQuotedPlex = text.split('"IBM Plex Sans"').join('').split('"IBM Plex Mono"').join('');
+        expect(withoutQuotedSans, label).not.toContain('Source Sans 3');
+        expect(withoutQuotedPlex, label).not.toContain('IBM Plex Sans');
+      }
     }
   });
 
