@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- 默认图表标题改为 16px（ECharts canvas 与 HTML 标题共用常量）。
+- 给默认字体栈里的字体名加上引号（`"IBM Plex Sans"`, `"Source Sans 3"`），避免 Canvas `ctx.font` 丢弃声明、标题回退到 10px。
+- 站点与 README 补充官方 GPT-Vis 来源标注（https://github.com/antvis/GPT-Vis），以及本仓 GitHub 链接。
+
 ## 0.3.0
 
 - `echarts` 改为 peerDependency（`^5.6.0 || ^6.0.0`），应用需自行安装；开发依赖仍保留 5.6 用于测试。
