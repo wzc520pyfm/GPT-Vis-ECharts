@@ -177,6 +177,24 @@ data
     expect(series[0].layout).toBe('circular');
   });
 
+  it('bakes flow-diagram coordinates from the container size', () => {
+    const syntax = `vis flow-diagram
+data
+  - source 甲
+    target 乙
+  - source 乙
+    target 丙
+`;
+    const small = buildView(syntax, { width: 400, height: 300 });
+    const large = buildView(syntax, { width: 800, height: 600 });
+    expect(small.kind).toBe('echarts');
+    expect(large.kind).toBe('echarts');
+    if (small.kind !== 'echarts' || large.kind !== 'echarts') return;
+    const coordinates = (view: typeof small) =>
+      (view.option.series as { data: { x: number; y: number }[] }[])[0].data.map((node) => [node.x, node.y]);
+    expect(coordinates(small)).not.toEqual(coordinates(large));
+  });
+
   it('draws a liquid triangle and a packed word', () => {
     const liquid = buildView('vis liquid\nshape triangle\npercent 0.4');
     expect(liquid.kind).toBe('html');
