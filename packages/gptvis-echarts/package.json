@@ -1,6 +1,6 @@
 {
   "name": "gptvis-echarts",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "ECharts adapter for GPT-Vis. Same vis syntax, GPTVis class, and chart constructors, rendered with Apache ECharts.",
   "keywords": [
     "gpt-vis",

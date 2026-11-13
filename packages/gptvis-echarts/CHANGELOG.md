@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+
+- 容器尺寸变化时只调用 ECharts `resize()`；流程图、默认思维导图，以及非 force/circular 布局的关系图，在尺寸稳定后再 debounce 一次 `buildView` 重建，避免拖拽过程中频繁完整 `setOption`。
+
 ## 0.3.1
 
 - 默认图表标题改为 16px（ECharts canvas 与 HTML 标题共用常量）。
