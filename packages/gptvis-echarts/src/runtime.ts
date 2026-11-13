@@ -6,6 +6,7 @@ import { copyText, downloadChart, mountVisShell, type VisShell } from './wrapper
 import { DEFAULT_FONT_FAMILY, DEFAULT_TITLE_FONT_SIZE, TITLE_RESERVE_EXTRA } from './titleLayout.js';
 
 const ZOOMABLE = new Set(['flow-diagram', 'network-graph', 'mindmap', 'indented-tree', 'organization-chart', 'fishbone-diagram']);
+const SIZE_REBUILD_DELAY = 150;
 
 export interface GPTVisOptions {
   container: string | HTMLElement;
@@ -34,6 +35,7 @@ export class GPTVis {
   private lastOption: Record<string, unknown> | null = null;
   private lastSize = '';
   private layingOut = false;
+  private rebuildTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
   private shell: VisShell | null = null;
   private zoom = 1;
   private sourceText = '';
@@ -69,18 +71,13 @@ export class GPTVis {
   }
 
   render(input: string | Record<string, unknown>): void {
+    this.cancelRebuild();
     this.lastInput = input;
     this.sourceText = typeof input === 'string' ? input : JSON.stringify(input, null, 2);
     this.shell?.setSource(this.sourceText);
     const configType = readConfig(input, { streaming: this.options.streaming }).type;
     this.shell?.setZoomVisible(ZOOMABLE.has(configType));
-    const box = this.root.getBoundingClientRect();
-    const context: ViewContext = {
-      theme: this.options.theme,
-      streaming: this.options.streaming,
-      width: this.options.width || box.width || undefined,
-      height: this.options.height || box.height || undefined,
-    };
+    const context = this.viewContext();
     let view;
     try {
       view = buildView(input, context);
@@ -98,6 +95,7 @@ export class GPTVis {
       this.chartHost.hidden = false;
       if (!this.chart) this.chart = echarts.init(this.chartHost, undefined, { renderer: 'canvas' });
       this.lastOption = view.option;
+      this.lastSize = sizeKey(context);
       this.fitChart();
       this.chart.setOption(view.option, { notMerge: true, lazyUpdate: false });
       this.relayout();
@@ -156,31 +154,82 @@ export class GPTVis {
 
   private relayout(): void {
     if (this.layingOut || !this.chart || !this.lastOption) return;
-    const width = this.root.clientWidth;
-    const height = this.root.clientHeight;
-    if (width < 2 || height < 2) return;
-    const size = `${width}x${height}`;
-    const mismatched = this.chart.getWidth() !== width || this.chart.getHeight() !== height;
+    const canvasWidth = this.root.clientWidth;
+    const canvasHeight = this.root.clientHeight;
+    if (canvasWidth < 2 || canvasHeight < 2) return;
     this.layingOut = true;
     try {
-      if (mismatched) this.chart.resize({ width, height });
-      if (size === this.lastSize && !mismatched) return;
-      this.lastSize = size;
-      const option = this.lastOption;
-      requestAnimationFrame(() => {
-        if (!this.chart || this.lastOption !== option) return;
-        const nextWidth = this.root.clientWidth;
-        const nextHeight = this.root.clientHeight;
-        if (nextWidth < 2 || nextHeight < 2) return;
-        this.chart.resize({ width: nextWidth, height: nextHeight });
-        this.chart.setOption(option, { notMerge: true, lazyUpdate: false });
-      });
+      if (this.chart.getWidth() !== canvasWidth || this.chart.getHeight() !== canvasHeight) {
+        this.chart.resize({ width: canvasWidth, height: canvasHeight });
+      }
     } finally {
       this.layingOut = false;
     }
+
+    const context = this.viewContext();
+    const size = sizeKey(context);
+    if (!size || size === this.lastSize) return;
+    this.lastSize = size;
+    if (!this.needsSizeRebuild()) return;
+    this.scheduleRebuild();
+  }
+
+  private viewContext(): ViewContext {
+    const box = this.root.getBoundingClientRect();
+    return {
+      theme: this.options.theme,
+      streaming: this.options.streaming,
+      width: this.options.width || box.width || undefined,
+      height: this.options.height || box.height || undefined,
+    };
+  }
+
+  private needsSizeRebuild(): boolean {
+    const series = this.lastOption?.series;
+    if (!Array.isArray(series)) return false;
+    return series.some((item) => {
+      if (!item || typeof item !== 'object') return false;
+      return (item as { layout?: unknown }).layout === 'none';
+    });
+  }
+
+  private scheduleRebuild(): void {
+    this.cancelRebuild();
+    this.rebuildTimer = globalThis.setTimeout(() => {
+      this.rebuildTimer = null;
+      this.rebuildForSize();
+    }, SIZE_REBUILD_DELAY);
+  }
+
+  private cancelRebuild(): void {
+    if (this.rebuildTimer === null) return;
+    globalThis.clearTimeout(this.rebuildTimer);
+    this.rebuildTimer = null;
+  }
+
+  private rebuildForSize(): void {
+    if (!this.chart || !this.lastOption || this.lastInput === undefined) return;
+    if (!this.needsSizeRebuild()) return;
+    const context = this.viewContext();
+    const size = sizeKey(context);
+    if (!size) return;
+    let view;
+    try {
+      view = buildView(this.lastInput, context);
+    } catch {
+      return;
+    }
+    if (view.kind !== 'echarts' || !this.chart) return;
+    this.lastOption = view.option;
+    this.lastSize = size;
+    this.root.style.background = view.background;
+    this.fitChart();
+    this.chart.setOption(view.option, { notMerge: true, lazyUpdate: false });
+    if (this.zoom !== 1) this.applyZoom();
   }
 
   destroy(): void {
+    this.cancelRebuild();
     this.observer?.disconnect();
     this.observer = null;
     this.chart?.dispose();
@@ -203,6 +252,11 @@ function resolveContainer(container: string | HTMLElement): HTMLElement {
   const element = document.querySelector(container);
   if (!(element instanceof HTMLElement)) throw new Error(`找不到容器：${container}`);
   return element;
+}
+
+function sizeKey(context: ViewContext): string {
+  if (!context.width || !context.height) return '';
+  return `${context.width}x${context.height}`;
 }
 
 function escape(value: string): string {
